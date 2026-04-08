@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests with coverage
+        env:
+          OPENAI_API_KEY: sk-test-placeholder
+          CHROMA_HOST: localhost
+          CHROMA_PORT: 8001
+        run: |
+          pytest tests/ \
+            --cov=core \
+            --cov=services \
+            --cov=memory \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            -v
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage.xml
+          fail_ci_if_error: false
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install ruff
+      - name: Lint with ruff
+        run: ruff check . --select E,F,W --ignore E501
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t ai-coder:${{ github.sha }} .
+      - name: Smoke test health endpoint
+        run: |
+          docker run -d \
+            -p 8000:8000 \
+            -e OPENAI_API_KEY=sk-test \
+            --name ai-coder-test \
+            ai-coder:${{ github.sha }}
+          sleep 5
+          curl -f http://localhost:8000/health
+          docker rm -f ai-coder-test
