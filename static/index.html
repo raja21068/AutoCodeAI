@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoCodeAI – Multi-Agent Coding System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Droid Sans Mono', 'Source Code Pro', monospace;
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+            color: #c9d1d9;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        h1 {
+            font-size: 3rem;
+            background: linear-gradient(135deg, #58a6ff 0%, #1f6feb 50%, #a371f7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+        
+        .subtitle {
+            color: #8b949e;
+            font-size: 1.1rem;
+        }
+        
+        .input-section {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+        
+        label {
+            display: block;
+            color: #8b949e;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        textarea, input[type="text"] {
+            width: 100%;
+            background: #0d1117;
+            color: #c9d1d9;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: inherit;
+            font-size: 0.95rem;
+            resize: vertical;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        
+        textarea:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: #58a6ff;
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+        }
+        
+        textarea {
+            min-height: 150px;
+        }
+        
+        .file-input {
+            margin: 1.5rem 0;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+        
+        button {
+            flex: 1;
+            background: linear-gradient(135deg, #238636 0%, #2ea043 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.2s;
+            font-family: inherit;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(35, 134, 54, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            background: #30363d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .clear-btn {
+            background: linear-gradient(135deg, #da3633 0%, #c93c37 100%);
+        }
+        
+        .clear-btn:hover {
+            box-shadow: 0 4px 12px rgba(218, 54, 51, 0.4);
+        }
+        
+        .output-section {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+        
+        .output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        h3 {
+            color: #58a6ff;
+            font-size: 1.2rem;
+        }
+        
+        .status {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .status.idle {
+            background: #30363d;
+            color: #8b949e;
+        }
+        
+        .status.running {
+            background: #1f6feb;
+            color: white;
+            animation: pulse 2s infinite;
+        }
+        
+        .status.success {
+            background: #238636;
+            color: white;
+        }
+        
+        .status.error {
+            background: #da3633;
+            color: white;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        pre {
+            background: #0d1117;
+            padding: 1.5rem;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            border-radius: 6px;
+            border: 1px solid #30363d;
+            max-height: 600px;
+            line-height: 1.6;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #6e7681;
+        }
+        
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+        
+        .feature-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .feature-title {
+            color: #58a6ff;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .feature-desc {
+            color: #8b949e;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 AutoCodeAI</h1>
+            <p class="subtitle">Multi-Agent Autonomous Coding System</p>
+        </header>
+        
+        <div class="features">
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <div class="feature-title">Parallel Execution</div>
+                <div class="feature-desc">Run independent tasks concurrently</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔧</div>
+                <div class="feature-title">Tool Integration</div>
+                <div class="feature-desc">Git, pip, and shell commands</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🧠</div>
+                <div class="feature-title">Smart Planning</div>
+                <div class="feature-desc">Multi-agent task decomposition</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🌐</div>
+                <div class="feature-title">Model Flexibility</div>
+                <div class="feature-desc">OpenAI, DeepSeek, or local models</div>
+            </div>
+        </div>
+        
+        <div class="input-section">
+            <label for="task">Describe Your Coding Task</label>
+            <textarea 
+                id="task" 
+                placeholder="Example: Create a REST API with user authentication using FastAPI and JWT tokens. Include unit tests and proper error handling."
+            ></textarea>
+            
+            <div class="file-input">
+                <label for="files">Context Files (comma-separated paths)</label>
+                <input 
+                    type="text" 
+                    id="files" 
+                    placeholder="e.g., src/main.py, tests/test_api.py, requirements.txt"
+                >
+            </div>
+            
+            <div class="button-group">
+                <button onclick="runTask()" id="runBtn">
+                    🚀 Run Agents
+                </button>
+                <button onclick="clearOutput()" class="clear-btn">
+                    🗑️ Clear Output
+                </button>
+            </div>
+        </div>
+        
+        <div class="output-section">
+            <div class="output-header">
+                <h3>📊 Execution Output</h3>
+                <span class="status idle" id="status">Idle</span>
+            </div>
+            
+            <pre id="output"><div class="empty-state">
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+</svg>
+<p>No output yet. Start by describing a task above.</p>
+</div></pre>
+        </div>
+    </div>
+    
+    <script>
+        const outputDiv = document.getElementById('output');
+        const statusSpan = document.getElementById('status');
+        const runBtn = document.getElementById('runBtn');
+        
+        function setStatus(status, text) {
+            statusSpan.className = `status ${status}`;
+            statusSpan.textContent = text;
+        }
+        
+        function clearOutput() {
+            outputDiv.innerHTML = '<div class="empty-state"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg><p>Output cleared. Ready for next task.</p></div>';
+            setStatus('idle', 'Idle');
+        }
+        
+        async function runTask() {
+            const task = document.getElementById('task').value.trim();
+            const filesInput = document.getElementById('files').value.trim();
+            
+            if (!task) {
+                alert('Please describe a task first.');
+                return;
+            }
+            
+            const files = filesInput 
+                ? filesInput.split(',').map(f => f.trim()).filter(f => f)
+                : [];
+            
+            outputDiv.innerText = '';
+            setStatus('running', 'Running...');
+            runBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/agent/stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        task: task,
+                        context_files: files 
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value);
+                    
+                    // Parse SSE format
+                    const lines = chunk.split('\n');
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.substring(6);
+                            // Replace arrow with newline
+                            const text = data.replace(/↵/g, '\n');
+                            outputDiv.innerText += text;
+                            outputDiv.scrollTop = outputDiv.scrollHeight;
+                        }
+                    }
+                }
+                
+                setStatus('success', 'Completed');
+            } catch (error) {
+                console.error('Error:', error);
+                outputDiv.innerText += `\n\n❌ Error: ${error.message}`;
+                setStatus('error', 'Failed');
+            } finally {
+                runBtn.disabled = false;
+            }
+        }
+        
+        // Allow Enter+Shift to submit
+        document.getElementById('task').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.shiftKey) {
+                e.preventDefault();
+                runTask();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+# experiments/config.yaml
+# ─────────────────────────────────────────────────────────────
+# Central config for all AgentForge experiments.
+# Edit this file before running — don't hard-code values in scripts.
+# ─────────────────────────────────────────────────────────────
+
+model:
+  # Default model used when no per-agent override is set.
+  # LiteLLM format: "provider/model-name" or just "model-name" for OpenAI.
+  # One-line change here re-routes the whole system.
+  default: gpt-4o
+
+  # Per-agent routing — mirrors the env-var overrides in .env.example
+  # Env vars (PLANNER_MODEL etc.) take precedence over these values at runtime.
+  routing:
+    planner:  gpt-4o
+    coder:    deepseek/deepseek-chat
+    tester:   groq/llama-3.3-70b-versatile
+    debugger: anthropic/claude-sonnet-4-5
+    critic:   anthropic/claude-sonnet-4-5
+
+  temperature: 0.0          # deterministic — critical for reproducibility
+  max_retries: 3            # debug loop retries per task
+  seed: 42                  # best-effort reproducibility (supported by most providers)
+
+baselines:
+  - name: single_agent
+    description: "Single GPT-4o call, no pipeline"
+  - name: react
+    description: "ReAct-style agent with tool use"
+    # Note: implement react_baseline.py before running this
+
+swebench:
+  split: lite               # lite (300 tasks) or full (2294 tasks)
+  dataset: princeton-nlp/SWE-bench_Lite
+  max_tasks: null           # null = run all tasks in split
+  resume: true              # skip completed tasks on re-run
+  workers: 1                # parallel tasks — keep at 1 to avoid rate limits
+  clone_timeout: 120        # seconds to wait for git clone
+  eval_timeout: 300         # seconds to wait for test suite
+
+ablation:
+  conditions:
+    - full_pipeline          # all agents — main result
+    - no_critic              # critic always returns PASS
+    - no_debugger            # no auto-fix loop
+    - no_tester              # no test generation
+    - no_planner             # flat single coder step
+    - single_agent           # one LLM call — baseline
+  tasks_per_condition: 100  # use first 100 tasks of SWE-bench Lite
+
+output:
+  base_dir: experiments/results
+  runs:
+    pilot:    experiments/results/pilot
+    full:     experiments/results/full_run
+    ablation: experiments/results/ablation
+  figures:    experiments/figures
+  tables:     experiments/tables
+
+logging:
+  level: INFO
+  per_task_json: true       # save one JSON file per task
+  token_tracking: true      # log prompt/completion tokens per call
+
+# ── NeurIPS submission timeline ──────────────────────────────
+timeline:
+  pilot_run:         "2025-07-01"   # 10 tasks, verify pipeline
+  full_run:          "2025-07-15"   # 300 tasks, main result
+  ablation_run:      "2025-08-01"   # 6 conditions × 100 tasks
+  paper_draft:       "2025-09-01"   # first full draft
+  internal_review:   "2025-10-01"   # co-author review
+  submission_ready:  "2025-11-01"   # polished draft
+  neurips_deadline:  "2026-05-15"   # estimated NeurIPS 2026 deadline
