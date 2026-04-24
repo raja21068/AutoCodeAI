@@ -1,0 +1,53 @@
+# docker-compose.integration.yml
+#
+# Brings up the AutoCodeAI FastAPI backend + ChromaDB as sidecar services
+# for OpenCode. OpenCode itself is not containerized here — it runs
+# natively on your host and reaches AutoCodeAI at http://localhost:8000.
+#
+# Usage:
+#   docker compose -f docker-compose.integration.yml up -d
+#   docker compose -f docker-compose.integration.yml logs -f autocodeai
+#
+# The compose config here simply wraps autocodeai/docker-compose.yml with
+# stable container names and exposed ports matched to the plugin's default
+# baseUrl. If you already use autocodeai/docker-compose.yml directly, you
+# can ignore this file.
+
+services:
+  autocodeai:
+    build:
+      context: ./autocodeai
+      dockerfile: Dockerfile
+    container_name: opencode-autocodeai
+    ports:
+      - "8000:8000"
+    environment:
+      - LLM_MODE=${LLM_MODE:-litellm}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - ENABLE_PARALLEL_EXECUTION=${ENABLE_PARALLEL_EXECUTION:-true}
+      - MAX_PARALLEL_WORKERS=${MAX_PARALLEL_WORKERS:-3}
+    volumes:
+      # Mount the host cwd so AutoCodeAI's sandbox can read context files
+      # that OpenCode references by relative path.
+      - ${OPENCODE_PROJECT_DIR:-.}:/workspace:rw
+      # Docker-in-Docker so AutoCodeAI can spawn its own sandbox containers
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - chromadb
+    restart: unless-stopped
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: opencode-autocodeai-chromadb
+    ports:
+      - "8001:8000"
+    volumes:
+      - chromadb-data:/chroma/chroma
+    restart: unless-stopped
+
+volumes:
+  chromadb-data:

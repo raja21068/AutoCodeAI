@@ -505,3 +505,17 @@ Please follow existing code style: async-first, type-annotated, no bare `except`
 ## License
 
 MIT License — see [LICENSE](LICENSE) for details.
+
+
+
+## Citation
+
+If you use this project, please cite:
+
+```bibtex
+@misc{kumar2026AgentForge,
+  title={AgentForge: Execution-Grounded Multi-Agent LLM Framework for Autonomous Software Engineering},
+  author={Rajesh Kumar, Waqar Ali, Junaid Ahmed, Najma Imtiaz Ali, Shaban Usman},
+  year={2026},
+  note={https://arxiv.org/abs/2604.13120}
+}

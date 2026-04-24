@@ -1,0 +1,3 @@
+[test]
+# Package-local bunfig so tests run from this directory rather than being
+# blocked by the root guard (root bunfig has root = "./do-not-run-tests-from-root").
