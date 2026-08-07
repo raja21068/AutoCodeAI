@@ -4,26 +4,59 @@ memory/vector/embeddings.py — ChromaDB-backed vector store.
 Uses OpenAI text-embedding-3-small for embeddings.
 Falls back to an in-process ephemeral client when ChromaDB is unreachable
 (useful for local development and CI).
+
+Two defects are fixed here. The module previously annotated a module-level
+name as ``chromadb.Client | None``; ``chromadb.Client`` is a factory function
+rather than a class, so evaluating that annotation raised ``TypeError`` at
+import time and made this module — and everything importing it, including the
+application orchestrator — unimportable.
+
+It also indexed every repository into one collection named ``code_index``, so
+chunks from different projects shared a namespace and could be retrieved for
+the wrong repository. Collections are now namespaced per index.
+
+This store backs the interactive application. Benchmark runs do not use it:
+retrieval there is per-instance and runs inside the task container. See
+``services/repo_retrieval.py``.
 """
 
+from __future__ import annotations
+
+import hashlib
 import logging
 import os
+import re
 
 import chromadb
 from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
-_chroma_client: chromadb.Client | None = None
-_embed_client:  OpenAI | None          = None
-COLLECTION_NAME = "code_index"
+_chroma_client = None
+_embed_client: OpenAI | None = None
+DEFAULT_NAMESPACE = "code_index"
+
+
+def collection_name(namespace: str | None = None) -> str:
+    """
+    Return a Chroma-legal collection name for *namespace*.
+
+    Chroma requires 3-63 characters, alphanumeric plus underscore and hyphen,
+    starting and ending alphanumeric — so an arbitrary repository path is
+    slugified and suffixed with a hash to keep distinct paths distinct.
+    """
+    if not namespace:
+        return DEFAULT_NAMESPACE
+    slug = re.sub(r"[^A-Za-z0-9_-]+", "_", str(namespace)).strip("_-")[:40]
+    digest = hashlib.sha1(str(namespace).encode("utf-8")).hexdigest()[:8]
+    return f"{slug or 'idx'}_{digest}"
 
 
 # ---------------------------------------------------------------------------
 # Client factories
 # ---------------------------------------------------------------------------
 
-def _get_chroma() -> chromadb.Client:
+def _get_chroma():
     global _chroma_client
     if _chroma_client is None:
         host = os.getenv("CHROMA_HOST", "localhost")
@@ -45,9 +78,9 @@ def _get_embed_client() -> OpenAI:
     return _embed_client
 
 
-def _get_collection() -> chromadb.Collection:
+def _get_collection(namespace: str | None = None):
     return _get_chroma().get_or_create_collection(
-        name=COLLECTION_NAME,
+        name=collection_name(namespace),
         metadata={"hnsw:space": "cosine"},
     )
 
@@ -70,9 +103,10 @@ def store_embedding(
     embedding: list[float],
     metadata: dict,
     doc_id: str,
+    namespace: str | None = None,
 ) -> None:
-    """Upsert an embedding + metadata into the ChromaDB collection."""
-    col = _get_collection()
+    """Upsert an embedding + metadata into the namespaced collection."""
+    col = _get_collection(namespace)
     col.upsert(
         ids=[doc_id],
         embeddings=[embedding],
@@ -84,9 +118,10 @@ def store_embedding(
 def query_embedding(
     query_vector: list[float],
     top_k: int = 5,
+    namespace: str | None = None,
 ) -> list[dict]:
     """Return the top-k most similar documents as a list of dicts."""
-    col = _get_collection()
+    col = _get_collection(namespace)
     results = col.query(
         query_embeddings=[query_vector],
         n_results=min(top_k, col.count() or 1),
@@ -101,6 +136,6 @@ def query_embedding(
     ]
 
 
-def delete_by_path(rel_path: str) -> None:
+def delete_by_path(rel_path: str, namespace: str | None = None) -> None:
     """Remove all embeddings whose 'path' metadata matches *rel_path*."""
-    _get_collection().delete(where={"path": rel_path})
+    _get_collection(namespace).delete(where={"path": rel_path})

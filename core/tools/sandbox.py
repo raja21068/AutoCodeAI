@@ -1,9 +1,22 @@
 """
-core/tools/sandbox.py — Isolated Docker sandbox for code execution.
+core/tools/sandbox.py — Isolated Docker sandbox for the interactive app.
 
-Injects code via a proper in-memory tar archive, runs it inside a
-resource-capped container with networking disabled, and force-removes
-the container on exit regardless of outcome.
+Injects code via an in-memory tar archive, runs it inside a resource-capped
+container with networking disabled, and force-removes the container on exit
+regardless of outcome.
+
+Scope: this sandbox executes *standalone* generated code for the web
+application. It is deliberately not used for benchmark runs, where the agent
+must act on a real repository with project dependencies installed — see
+``eval/instance_env.py``. Using this image for SWE-bench tasks was the reason
+earlier benchmark runs produced import errors instead of test results.
+
+The image must already contain pytest. The previous version attempted
+``pip install pytest`` inside a container created with
+``network_disabled=True``, which cannot succeed; the resulting
+"No module named pytest" was then surfaced as though it were a test failure.
+Availability is now checked up front and reported as an environment problem.
+Override the image with ``SANDBOX_IMAGE``.
 """
 
 import io
@@ -21,7 +34,8 @@ logger = logging.getLogger(__name__)
 class DockerSandbox:
     def __init__(self) -> None:
         self.client  = docker.from_env()
-        self.image   = os.getenv("SANDBOX_IMAGE", "python:3.10-slim")
+        # Build with: docker build -f Dockerfile.sandbox -t agentforge-sandbox .
+        self.image   = os.getenv("SANDBOX_IMAGE", "agentforge-sandbox:latest")
         self.timeout = int(os.getenv("SANDBOX_TIMEOUT", "30"))
 
     # ------------------------------------------------------------------
@@ -84,8 +98,16 @@ class DockerSandbox:
             stderr = ""
 
             if test_code:
+                probe, _ = container.exec_run("python -m pytest --version")
+                if probe != 0:
+                    return stdout, (
+                        f"pytest is not installed in sandbox image "
+                        f"{self.image!r}, and networking is disabled so it "
+                        f"cannot be installed at run time. Set SANDBOX_IMAGE "
+                        f"to an image that includes pytest."
+                    )
+
                 self._copy_to_container(container, "test_code.py", test_code)
-                container.exec_run("pip install pytest -q")
                 _, t_out = container.exec_run(
                     "bash -c 'python -m pytest /tmp/test_code.py -v --tb=short'",
                     demux=False,

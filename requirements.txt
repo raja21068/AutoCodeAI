@@ -1,11 +1,19 @@
 fastapi==0.111.0
 uvicorn[standard]==0.29.0
-docker==6.1.3
+# docker-py 6.x registers a custom "http+docker://" transport adapter that
+# requests 2.32 stopped resolving, so 6.1.3 cannot reach a healthy daemon at
+# all ("Not supported URL scheme http+docker"). Fixed in 7.1.0. Pinning
+# requests<2.32 instead would work but drags an unmaintained security surface
+# into every run.
+docker>=7.1.0
 gitpython==3.1.40
 watchdog==3.0.0
 websockets==12.0
 sse-starlette==1.6.5
 chromadb==0.4.24
+# chromadb 0.4.x uses np.float_, removed in NumPy 2.0. Without this pin a
+# fresh install fails at import time.
+numpy<2.0
 # LiteLLM — unified provider interface (default mode)
 litellm>=1.40.0
 # OpenAI SDK — for openai, deepseek, and local modes

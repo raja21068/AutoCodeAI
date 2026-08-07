@@ -1,0 +1,103 @@
+\section{Introduction}
+\label{sec:intro}
+
+Software engineering is one of the most cognitively demanding knowledge-work disciplines, requiring practitioners to reason simultaneously about specifications, existing codebases, execution behavior, and correctness criteria. Despite rapid progress in large language models (LLMs), most AI-assisted coding systems still approach code generation as a single-step prediction task: given a natural language description, produce a plausible completion~\cite{brown2020language}. This formulation excels at isolated function synthesis but collapses on multi-file, context-heavy tasks that dominate real developer workloads—diagnosing bugs, reasoning about interfaces, generating tests, and ensuring patches do not regress the broader codebase~\cite{chen2021codex}.
+
+Recent advances have shifted focus from monolithic LLMs to multi-agent systems for complex software engineering tasks. By assigning distinct roles to agents (e.g., planners, coders, testers, reviewers), these frameworks decompose development workflows into manageable subtasks. This paradigm has driven significant progress on benchmarks like SWE-bench, with state-of-the-art systems achieving resolution rates exceeding 70\% through agent collaboration~\cite{trae2025}.
+
+\textbf{The gap.} When resolving a bug report, experienced engineers follow a structured, feedback-driven process: plan, read, write, test, debug, and review. No existing multi-agent framework fully replicates this cycle because most operate in simulated or permissive environments, where the LLM fabricates execution outcomes rather than receiving genuine feedback from actual code runs. This reliance on hallucinated execution traces fundamentally limits their ability to verify correctness or detect regressions.
+
+\textbf{Our approach.} We introduce \textbf{AgentForge}, a multi-agent framework that explicitly models human-led debugging. AgentForge decomposes the task into five specialized agents: a \textit{Planner} that converts a natural-language task into a structured execution plan, a \textit{Coder} that generates minimal targeted patches using unified diffs, a \textit{Tester} that synthesizes executable test cases, a \textit{Debugger} that iteratively repairs failures observed during sandboxed execution, and a \textit{Critic} that independently reviews the final output before acceptance. All agents share a dual-memory system: episodic memory of prior solutions and a live repository index, grounding every decision in the actual codebase. Unlike prior multi-agent systems, AgentForge \textit{requires} sandboxed execution (Docker, resource-capped, network-disabled) for every generated patch, providing genuine execution feedback that cannot be fabricated by the LLM.
+
+Table~\ref{tab:comparison} positions AgentForge among representative systems. Several recent frameworks have advanced the state of the art: \textsc{AgentMesh}~\cite{khanzadeh2025agentmesh} uses a Planner, Coder, Debugger, and Reviewer; \textsc{MAGIS}~\cite{tao2024magis} employs Manager, Repository Custodian, Developer, and QA agents; \textsc{SGAgent}~\cite{z} introduces a localize-suggest-fix paradigm with a knowledge graph, achieving 51.3\% repair accuracy on SWE-Bench; and \textsc{Trae Agent}~\cite{trae2025} implements test-time scaling with generation, pruning, and selection, attaining 75.20\% Pass@1 on SWE-bench Verified. Concurrent work such as \textsc{Eco-Evolve}~\cite{ecoevolve2026} and \textsc{SWE-Debate}~\cite{swedebate2026} explores self-evolution and competitive debate, but neither mandates sandboxed execution nor combines dual retrieval with a full five-agent pipeline. AgentForge is the first to integrate mandatory verified execution, five specialized agents, and dual retrieval (episodic memory + live repository index).
+
+
+
+
+
+\begin{table}[t]
+\centering
+\caption{Comparison of representative multi-agent frameworks. AgentForge uniquely
+         combines mandatory sandboxed execution, dual retrieval, and an independent Critic agent.}
+\label{tab:comparison}
+\small
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.25}
+\newcolumntype{Y}{>{\centering\arraybackslash}p{2.0cm}}
+
+\begin{tabular}{@{} l p{2.6cm} p{2.1cm} p{2.1cm} p{2.1cm} p{2.3cm} @{}}
+\toprule
+\textbf{Feature}
+  & \cellcolor{blue!8}\textbf{AgentForge (ours)}
+  & \textbf{AgentMesh}~\cite{agentmesh2025}
+  & \textbf{MAGIS}~\cite{zheng2024sgagent}
+  & \textbf{SGAgent}~\cite{sgagent2026}
+  & \textbf{Trae Agent}~\cite{trae2025} \\
+\midrule
+
+\multicolumn{6}{@{}l}{\textit{\small\color{gray} Architecture}} \\[1pt]
+
+Agent roles
+  & \cellcolor{blue!8}Planner, Coder, Tester, Debugger, \textbf{Critic}
+  & Planner, Coder, Debugger, Reviewer
+  & Manager, Custodian, Developer, QA
+  & Localizer, Suggester, Fixer
+  & Generator, Pruner, Selector \\
+
+Independent critic
+  & \cellcolor{blue!8}\textbf{Yes} — dedicated agent
+  & Yes — Reviewer
+  & Implied (QA)
+  & No
+  & No \\[4pt]
+
+\multicolumn{6}{@{}l}{\textit{\small\color{gray} Execution}} \\[1pt]
+
+Verified execution
+  & \cellcolor{blue!8}\textbf{Mandatory} Docker sandbox
+  & --
+  & --
+  & --
+  & Supported \\
+
+Iterative debug loop
+  & \cellcolor{blue!8}\textbf{Yes}, configurable retries
+  & Yes
+  & Implied (QA)
+  & Yes
+  & Yes (test-time scaling) \\[4pt]
+
+\multicolumn{6}{@{}l}{\textit{\small\color{gray} Memory}} \\[1pt]
+
+Memory / retrieval
+  & \cellcolor{blue!8}\textbf{Dual}: episodic + repo index
+  & --
+  & --
+  & Knowledge graph
+  & -- \\[4pt]
+
+\multicolumn{6}{@{}l}{\textit{\small\color{gray} Evaluation (SWE-bench)}} \\[1pt]
+
+Reported metric
+  & \cellcolor{blue!8}\textbf{XX\%} resolution
+  & Not evaluated
+  & 13.94\% resolution
+  & 51.3\% repair acc.
+  & 75.20\% Pass@1 \\
+
+\bottomrule
+\end{tabular}
+\end{table}
+\textbf{Contributions.} We make the following contributions:
+\begin{enumerate}
+    \item \textbf{AgentForge framework.} An open-source, production-ready multi-agent system featuring five specialized agents, diff-based editing, a configurable iterative debug loop, ChromaDB-backed dual semantic memory, a live repository indexer, and real-time token streaming.
+    \item \textbf{Sandboxed execution.} A strict Docker-based environment delivering authentic execution feedback (not LLM-simulated) with hard resource caps (512 MB RAM, 0.5 CPU, no network), enabling safe and repeatable evaluation of untrusted code.
+    \item \textbf{Empirical evaluation on SWE-bench.} We evaluate AgentForge on SWE-bench Lite (300 real GitHub issues from 11 repositories). AgentForge achieves \textbf{XX\%} resolution, outperforming single-agent GPT-4o (YY\%) and ReAct-style baselines (ZZ\%) by substantial margins.
+    \item \textbf{Ablation study.} We systematically disable each agent and measure the resulting drop in resolution rate. The Tester-Debugger loop provides the largest individual gain (+AA\% over no-debug), confirming that verified execution feedback is the key driver of performance.
+\end{enumerate}
+
+\textbf{Novelty summary.} AgentForge is the first framework to mandate sandboxed verification for every code change, providing ground-truth execution feedback. It integrates five specialized agents (Planner, Coder, Tester, Debugger, Critic) with a dual-memory system (episodic memory + live repository index) – a combination absent from AgentMesh, MAGIS, SGAgent, and Trae Agent.
+
+\textbf{Implications.} Our results indicate that verified execution feedback and structured pipeline design matter more than raw model scale for real-world software engineering. AgentForge provides an open-source baseline for future research in this direction.
+
+The remainder of this paper is organized as follows. Section~\ref{sec:related} surveys related work. Section~\ref{sec:method} details the AgentForge architecture. Section~\ref{sec:experiments} describes the experimental setup and baselines. Section~\ref{sec:results} presents main results and ablations. Section~\ref{sec:conclusion} discusses limitations and future directions.

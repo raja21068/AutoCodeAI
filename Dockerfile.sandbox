@@ -1,0 +1,28 @@
+# Sandbox image for the interactive application's code-execution tool.
+#
+# The sandbox runs with networking disabled, so anything the generated code or
+# its tests need must be baked in here — nothing can be pip-installed at run
+# time. Build and point SANDBOX_IMAGE at it:
+#
+#   docker build -f Dockerfile.sandbox -t agentforge-sandbox:latest .
+#   export SANDBOX_IMAGE=agentforge-sandbox:latest
+#
+# This image is NOT used for SWE-bench evaluation. Benchmark tasks run in the
+# official per-instance images, which carry the repository and its
+# dependencies; see eval/instance_env.py.
+
+FROM python:3.10-slim
+
+# Test runner plus the handful of libraries generated snippets commonly reach
+# for. Keep this list short: every addition widens what the sandbox can do.
+RUN pip install --no-cache-dir \
+        pytest==8.2.0 \
+        hypothesis==6.100.1 \
+    && useradd --create-home --shell /usr/sbin/nologin sandboxuser
+
+# Drop root. The container is also started with a memory cap, a PID limit and
+# no network; this is defence in depth, not a complete isolation boundary.
+USER sandboxuser
+WORKDIR /workspace
+
+CMD ["sleep", "60"]

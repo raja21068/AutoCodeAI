@@ -1,0 +1,48 @@
+# Secrets — never commit. The paper links to this repository publicly.
+.env
+.env.*
+!.env.example
+*.key
+*_secret*
+credentials.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# Test and type-checker caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Evaluation output. Trajectories carry full prompts and can be large;
+# release them deliberately as a versioned artifact, not by accident.
+eval/results/
+experiments/results/
+logs/
+*.jsonl
+!eval/subsets/*.json
+
+# Local vector index
+.ai_coding_index/
+chroma/
+
+# Official harness scratch
+logs/run_evaluation/
+*.swebench.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

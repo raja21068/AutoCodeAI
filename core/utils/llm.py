@@ -30,9 +30,11 @@ Per-agent routing (env overrides):
 
 from __future__ import annotations
 
-import os
-from typing import AsyncGenerator
+import asyncio
 import logging
+import os
+import random
+from typing import AsyncGenerator
 
 import litellm
 import httpx
@@ -114,6 +116,180 @@ def _get_client() -> AsyncOpenAI | None:
 
 
 # ── Public API ─────────────────────────────────────────────────────────────
+
+class ContextTooLong(RuntimeError):
+    """
+    The prompt exceeded the model's context window.
+
+    Raised as its own type because retrying is pointless — the caller must
+    shrink the prompt. Conflating it with transient errors burns the retry
+    budget on a request that cannot succeed.
+    """
+
+
+def _exception(name: str):
+    """Look up a litellm exception defensively; names move between versions."""
+    return getattr(litellm.exceptions, name, None)
+
+
+def _classify(exc: Exception) -> str:
+    """Return 'retry', 'context', or 'fatal' for *exc*."""
+    for name in ("ContextWindowExceededError",):
+        cls = _exception(name)
+        if cls and isinstance(exc, cls):
+            return "context"
+
+    for name in ("AuthenticationError", "PermissionDeniedError",
+                 "NotFoundError", "ContentPolicyViolationError"):
+        cls = _exception(name)
+        if cls and isinstance(exc, cls):
+            return "fatal"
+
+    for name in ("RateLimitError", "APIConnectionError", "Timeout",
+                 "APIError", "InternalServerError", "ServiceUnavailableError"):
+        cls = _exception(name)
+        if cls and isinstance(exc, cls):
+            return "retry"
+
+    # Unknown failures are treated as transient once or twice rather than
+    # losing a whole instance to a hiccup.
+    message = str(exc).lower()
+    if any(token in message for token in
+           ("rate limit", "timeout", "timed out", "overloaded",
+            "temporarily unavailable", "connection", "502", "503", "529")):
+        return "retry"
+    if "context length" in message or "maximum context" in message:
+        return "context"
+    return "retry"
+
+
+async def _with_retries(call, *, what: str):
+    """
+    Run *call* with exponential backoff and jitter.
+
+    A benchmark sweep issues on the order of tens of thousands of requests, so
+    transient rate limits are certain rather than unlikely. Without this, one
+    429 loses an entire instance and silently biases the run toward whichever
+    configuration happened to hit a quieter moment.
+    """
+    max_attempts = int(os.getenv("LLM_MAX_RETRIES", "5"))
+    base = float(os.getenv("LLM_BACKOFF_BASE_S", "2.0"))
+    cap = float(os.getenv("LLM_BACKOFF_CAP_S", "60.0"))
+
+    last: Exception | None = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return await call()
+        except Exception as exc:
+            kind = _classify(exc)
+            last = exc
+
+            if kind == "context":
+                raise ContextTooLong(str(exc)) from exc
+            if kind == "fatal" or attempt == max_attempts:
+                logger.error("%s failed (%s): %s", what, kind, exc)
+                raise
+
+            # Jitter first, then cap — capping first lets the jitter multiplier
+            # push the delay back above the ceiling.
+            delay = base * (2 ** (attempt - 1)) * (0.5 + random.random())
+            delay = min(cap, delay)
+            logger.warning("%s attempt %d/%d failed (%s); retrying in %.1fs",
+                           what, attempt, max_attempts, type(exc).__name__, delay)
+            await asyncio.sleep(delay)
+
+    raise last if last else RuntimeError(f"{what} failed")
+
+
+class LLMResult:
+    """Text plus the accounting needed for budget-matched comparisons."""
+
+    __slots__ = ("text", "model", "prompt_tokens", "completion_tokens", "cost_usd")
+
+    def __init__(
+        self,
+        text: str,
+        model: str,
+        prompt_tokens: int = 0,
+        completion_tokens: int = 0,
+        cost_usd: float = 0.0,
+    ) -> None:
+        self.text = text
+        self.model = model
+        self.prompt_tokens = prompt_tokens
+        self.completion_tokens = completion_tokens
+        self.cost_usd = cost_usd
+
+    @property
+    def total_tokens(self) -> int:
+        return self.prompt_tokens + self.completion_tokens
+
+    def as_dict(self) -> dict:
+        return {
+            "model": self.model,
+            "prompt_tokens": self.prompt_tokens,
+            "completion_tokens": self.completion_tokens,
+            "cost_usd": round(self.cost_usd, 6),
+        }
+
+
+async def llm_call(
+    prompt: str,
+    system: str = "You are a helpful assistant.",
+    agent: str = "",
+    *,
+    model: str | None = None,
+    temperature: float = 0.0,
+) -> LLMResult:
+    """
+    Non-streaming call that reports token usage and cost.
+
+    Every controlled comparison in the paper needs per-call accounting, so
+    benchmark code should call this rather than :func:`llm`. ``model``
+    overrides per-agent routing, which is how a single-model configuration is
+    enforced across all five roles.
+    """
+    resolved = model or _resolve_model(agent)
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": prompt},
+    ]
+
+    timeout = float(os.getenv("LLM_TIMEOUT_S", "180"))
+
+    if LLM_MODE == "litellm":
+        async def _call():
+            return await litellm.acompletion(
+                model=resolved, messages=messages, temperature=temperature,
+                seed=42, timeout=timeout,
+            )
+    else:
+        client = _get_client()
+        if client is None:
+            logger.error("Invalid LLM_MODE: %s", LLM_MODE)
+            return LLMResult("", resolved)
+
+        async def _call():
+            return await client.chat.completions.create(
+                model=resolved, messages=messages, temperature=temperature,
+                timeout=timeout,
+            )
+
+    response = await _with_retries(_call, what=f"llm_call({resolved}, {agent})")
+
+    text = response.choices[0].message.content or ""
+    usage = getattr(response, "usage", None)
+    prompt_tokens = getattr(usage, "prompt_tokens", 0) or 0
+    completion_tokens = getattr(usage, "completion_tokens", 0) or 0
+
+    try:
+        cost = litellm.completion_cost(completion_response=response)
+    except Exception:
+        # Unknown/local model pricing — tokens are still recorded.
+        cost = 0.0
+
+    return LLMResult(text, resolved, prompt_tokens, completion_tokens, cost)
+
 
 async def llm(
     prompt: str,

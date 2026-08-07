@@ -119,6 +119,20 @@ class Orchestrator:
                       for s in group_steps],
                     return_exceptions=True
                 )
+                # A parallel group shares one `latest_code` slot, so if more
+                # than one step in the group emits code, all but the last are
+                # dropped. Surface that rather than losing work silently.
+                emitting = [
+                    r for r in parallel_results
+                    if not isinstance(r, Exception) and r.get("code")
+                ]
+                if len(emitting) > 1:
+                    logger.warning(
+                        "Parallel group %s produced code in %d steps; only the "
+                        "last is retained. Put edits in separate groups to keep "
+                        "them all.", group_num, len(emitting),
+                    )
+
                 for r in parallel_results:
                     if isinstance(r, Exception):
                         logger.error(f"Parallel execution error: {r}")

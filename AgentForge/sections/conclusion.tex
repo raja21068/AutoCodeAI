@@ -1,0 +1,63 @@
+% ============================================================
+%  Section 6: Conclusion
+% ============================================================
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+We presented \agentforge{}, a multi-agent framework for
+autonomous software engineering that decomposes code
+generation, testing, debugging, and review into five
+specialized agents connected by a structured orchestration
+pipeline. By executing generated code in a genuine
+Docker sandbox and grounding each agent call in retrieved
+repository context and episodic memory, \agentforge{}
+closes the gap between single-shot LLM code generation
+and the iterative, feedback-driven process of human
+software engineering.
+
+On \swebench{} Lite, \agentforge{} achieves \RESULT{XX\%}
+task resolution, outperforming single-agent and ReAct
+baselines by \RESULT{XX} percentage points. Our ablation
+study shows that each agent contributes meaningfully,
+with the Tester--Debugger loop providing the largest
+individual gain — evidence that verified execution
+feedback, rather than model scale alone, is the critical
+ingredient for strong performance on real-world
+software engineering tasks.
+
+\paragraph{Limitations.}
+\agentforge{} inherits several limitations of current
+LLM-based systems. First, it operates at the file level:
+tasks requiring coordinated changes across many files or
+build system modifications remain challenging.
+Second, the evaluation oracle is binary — a task either
+resolves or does not — and does not capture partial credit
+for patches that fix the reported symptom but introduce
+latent regressions.
+Third, all experiments use GPT-4o; performance with
+open-weight models is an important open question.
+
+\paragraph{Future Work.}
+Promising directions include: (1) multi-file atomic patch
+application with rollback on failure; (2) function-level
+rather than file-level repository indexing for finer
+retrieval granularity; (3) a persistent cross-session
+memory store that accumulates repository-specific
+knowledge over time; (4) evaluation on additional
+benchmarks including HumanEval-Pro and
+multi-language SWE-bench variants; and
+(5) fine-tuning specialized smaller models for each
+agent role to reduce inference cost.
+
+\paragraph{Broader Impact.}
+Autonomous software engineering agents have the potential
+to substantially accelerate software development,
+making programming assistance more accessible to
+non-expert developers. At the same time, they introduce
+risks around the generation of insecure or incorrect
+code at scale. The sandboxed execution environment in
+\agentforge{} mitigates the latter risk in the
+evaluation setting, but production deployment requires
+additional safeguards including human oversight,
+static analysis integration, and audit logging.

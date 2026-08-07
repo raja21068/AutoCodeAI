@@ -163,44 +163,34 @@ def estimate_cost(n_tasks: int, model: str = "gpt-4o") -> None:
 
 # ── Step 3: Pilot run ────────────────────────────────────────
 
-async def run_pilot(n_tasks: int = 10, output_dir: str = "experiments/results/pilot") -> None:
-    print(bold(f"\n  Running {n_tasks}-task pilot…\n"))
+async def run_pilot(n_tasks: int = 10, model: str = "gpt-4o",
+                    output_dir: str = "experiments/results") -> None:
+    """
+    Small prediction run through the corrected pipeline.
 
-    try:
-        from datasets import load_dataset
-    except ImportError:
-        print(red("  ❌  datasets not installed: pip install datasets"))
+    This used to call ``eval.swebench_runner.run_task`` with a shared
+    orchestrator and print a resolve rate from a local grader. Both are gone:
+    prediction and grading are now separate programs, and only the official
+    harness reports resolution. The pilot therefore reports what it can
+    legitimately observe — patches produced and resources spent — and prints
+    the grading command.
+    """
+    run_id = f"pilot_{n_tasks}"
+    cmd = [
+        sys.executable, "-m", "eval.swebench_runner",
+        "--split", "lite", "--config", "agentforge",
+        "--model", model, "--run_id", run_id,
+        "--output_dir", output_dir, "--max_tasks", str(n_tasks),
+        "--resume",
+    ]
+    print(bold(f"\n  Running {n_tasks}-task pilot…\n"))
+    result = subprocess.run(cmd)
+    if result.returncode != 0:
+        print(red("  Pilot run failed; see the log above."))
         return
 
-    from eval.swebench_runner import run_task
-    from eval.task_adapter    import SWEBenchTaskAdapter
-    from eval.metrics         import compute_metrics
-    from services.orchestrator import Orchestrator
-
-    out_dir = Path(output_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    dataset = load_dataset("princeton-nlp/SWE-bench_Lite", split="test")
-    tasks   = list(dataset)[:n_tasks]
-
-    orch    = Orchestrator()
-    adapter = SWEBenchTaskAdapter()
-    records = []
-
-    for i, task in enumerate(tasks, 1):
-        print(f"  [{i:2}/{n_tasks}] {task['instance_id']}")
-        record = await run_task(task, orch, adapter, out_dir, resume=True)
-        records.append(record)
-        status = green("RESOLVED") if record["resolved"] else yellow("not resolved")
-        print(f"         → {status}  ({record['elapsed_s']:.1f}s)")
-
-    orch.shutdown()
-
-    metrics = compute_metrics(records)
-    print(bold(f"\n  Pilot complete — {metrics['resolved']}/{metrics['total']} resolved "
-               f"({metrics['resolve_rate']:.1%})"))
-    (out_dir / "summary.json").write_text(json.dumps({"metrics": metrics}, indent=2))
-    print(f"  Results saved to {out_dir}/\n")
+    print(bold("\n  Prediction complete. Grade with the official harness:\n"))
+    print(f"      python -m eval.run_official_eval --run_id {run_id}\n")
 
 
 # ── CLI entry point ──────────────────────────────────────────
@@ -234,7 +224,7 @@ def main():
         estimate_cost(n, args.model)
         confirm = input(f"  Run {n}-task pilot? [y/N] ").strip().lower()
         if confirm == "y":
-            asyncio.run(run_pilot(n))
+            asyncio.run(run_pilot(n, args.model))
 
     if args.full:
         check_environment()
@@ -243,9 +233,10 @@ def main():
         confirm = input(f"  Run {n}-task full evaluation? [y/N] ").strip().lower()
         if confirm == "y":
             cmd = [sys.executable, "-m", "eval.swebench_runner",
-                   "--split", "lite", "--max_tasks", str(n),
-                   "--model", args.model,
-                   "--output_dir", "experiments/results/full"]
+                   "--split", "lite", "--config", "agentforge",
+                   "--max_tasks", str(n), "--model", args.model,
+                   "--run_id", "full_lite",
+                   "--output_dir", "experiments/results"]
             subprocess.run(cmd)
 
     if args.ablation:
@@ -254,8 +245,8 @@ def main():
         confirm = input(f"  Run ablation ({n} tasks × 6 conditions)? [y/N] ").strip().lower()
         if confirm == "y":
             cmd = [sys.executable, "-m", "eval.ablation_runner",
-                   "--max_tasks", str(n),
-                   "--output_dir", "experiments/results/ablation"]
+                   "--run_prefix", "ablation", "--model", args.model,
+                   "--max_tasks", str(n), "--grade"]
             subprocess.run(cmd)
 
 

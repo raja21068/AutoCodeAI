@@ -139,32 +139,60 @@ class CoderAgent:
 
     @staticmethod
     def _apply_diff(original_code: str, diff_text: str) -> str:
-        """Apply a unified diff produced by the LLM to original_code."""
+        """
+        Apply a unified diff produced by the LLM to *original_code*.
+
+        The previous implementation had two defects that silently corrupted
+        multi-hunk patches. It reset its source cursor to line 0 for every
+        hunk, so context lines were copied from the top of the file rather
+        than from the hunk's own location; and it indexed each hunk by its
+        original line numbers after earlier hunks had already changed the
+        length of the buffer, so every hunk after the first landed at the
+        wrong offset. Both produced plausible-looking but wrong output rather
+        than an error.
+
+        A hunk's replacement text is simply its target side — context plus
+        added lines — so it is taken directly from the hunk, and a running
+        offset accounts for length changes made by preceding hunks.
+        """
         match = re.search(r"```diff\s*(.*?)```", diff_text, re.DOTALL)
         raw_diff = match.group(1).strip() if match else diff_text.strip()
         if not raw_diff:
             return original_code
+
         try:
             patch = PatchSet(raw_diff)
-            lines = original_code.splitlines(keepends=True)
+        except Exception as exc:
+            logger.warning("Could not parse diff (%s); returning original.", exc)
+            return original_code
+
+        lines = original_code.splitlines(keepends=True)
+        offset = 0
+        applied = 0
+
+        try:
             for patched_file in patch:
                 for hunk in patched_file:
-                    new_lines: list[str] = []
-                    src_idx = 0
-                    for line in hunk:
-                        if line.is_context:
-                            new_lines.append(lines[src_idx]); src_idx += 1
-                        elif line.is_removed:
-                            src_idx += 1
-                        elif line.is_added:
-                            new_lines.append(line.value)
-                    start = hunk.source_start - 1
-                    end   = start + hunk.source_length
-                    lines[start:end] = new_lines
-            return "".join(lines)
+                    start = hunk.source_start - 1 + offset
+                    end = start + hunk.source_length
+                    if start < 0 or end > len(lines):
+                        raise IndexError(
+                            f"hunk at source line {hunk.source_start} does not "
+                            f"fit a {len(lines)}-line file"
+                        )
+                    # unidiff keeps the line ending in ``value``.
+                    replacement = [
+                        line.value for line in hunk
+                        if line.is_context or line.is_added
+                    ]
+                    lines[start:end] = replacement
+                    offset += len(replacement) - hunk.source_length
+                    applied += 1
         except Exception as exc:
             logger.warning("Diff application failed (%s); returning original.", exc)
             return original_code
+
+        return "".join(lines) if applied else original_code
 
 
 # ---------------------------------------------------------------------------

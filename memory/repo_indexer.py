@@ -32,6 +32,9 @@ class RepoIndexer(FileSystemEventHandler):
     ) -> None:
         super().__init__()
         self.repo_path  = Path(repo_path).resolve()
+        # Each repository gets its own collection; a shared one let chunks
+        # from one project be retrieved for another.
+        self.namespace  = str(self.repo_path)
         self.index_path = Path(index_path)
         self.index_path.mkdir(parents=True, exist_ok=True)
         self._observer: Observer | None = None
@@ -62,6 +65,7 @@ class RepoIndexer(FileSystemEventHandler):
                 embedding,
                 {"path": rel_path, "content": content, "type": "file"},
                 doc_id=doc_id,
+                namespace=self.namespace,
             )
             logger.debug("Indexed %s", rel_path)
         except Exception as exc:
@@ -93,7 +97,7 @@ class RepoIndexer(FileSystemEventHandler):
         if not event.is_directory and self._should_index(path):
             try:
                 rel_path = str(path.relative_to(self.repo_path))
-                delete_by_path(rel_path)
+                delete_by_path(rel_path, namespace=self.namespace)
             except Exception as exc:
                 logger.warning("Failed to remove index for %s: %s", path, exc)
 
@@ -122,4 +126,4 @@ class RepoIndexer(FileSystemEventHandler):
 
     def retrieve_relevant(self, query: str, top_k: int = 5) -> list[dict]:
         query_vec = get_embedding(query)
-        return query_embedding(query_vec, top_k)
+        return query_embedding(query_vec, top_k, namespace=self.namespace)

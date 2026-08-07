@@ -1,0 +1,245 @@
+% ============================================================
+%  Section 2: Related Work
+%  AgentForge: A Multi-Agent Framework for Autonomous
+%  Software Engineering
+% ============================================================
+
+\section{Related Work}
+\label{sec:related}
+
+\subsection{LLM-Based Code Generation}
+
+Early work on neural code generation focused on
+sequence-to-sequence models trained on code
+corpora~\cite{iyer2016summarizing,yin2017syntactic}.
+The introduction of large-scale pretraining on
+mixed code and text data produced a step change in
+capability: Codex~\cite{chen2021codex} demonstrated
+that a GPT-style model trained on GitHub could solve
+a substantial fraction of competitive programming
+problems in a single forward pass. Subsequent
+models — AlphaCode~\cite{li2022alphacode},
+StarCoder~\cite{li2023starcoder}, and
+CodeLlama~\cite{roziere2023codellama} — pushed
+performance further through larger training sets,
+improved tokenization, and fill-in-the-middle
+objectives designed for code editing.
+
+A critical limitation shared by all single-shot
+approaches is their lack of mechanisms for
+verification or iterative revision. When a generated
+function fails a test case, the model has no channel
+to observe the failure and produce a correction.
+This limitation has motivated a paradigm shift from
+single, monolithic LLMs to multi-agent systems,
+where specialized agents handle planning, coding,
+testing, and debugging. AgentForge embraces this
+shift through its Tester--Debugger loop, which
+provides genuine execution feedback at every step.
+
+\subsection{Program Repair and Iterative Refinement}
+
+Automated program repair (APR) is a classical
+software engineering problem that predates deep
+learning~\cite{genprog,angelix,prophet}.
+Recent neural APR systems use LLMs to propose
+patches given a failing test and a fault
+localization signal~\cite{xia2022less,
+jin2023inferfix,fan2023automated}. These systems
+share with AgentForge the insight that execution
+feedback is essential, but typically assume a
+pre-existing test suite and a known fault location
+rather than generating both from scratch.
+
+Several recent systems have advanced iterative
+repair with richer feedback signals.
+TraceRepair~\cite{tracerepair2026} leverages
+runtime execution traces as objective constraints
+for patch validation, moving beyond simple error
+messages. DynaFix~\cite{dynafix2025} introduces
+execution-level dynamic information (variable
+states, call stacks) to guide LLM patch generation,
+achieving substantial improvements on Defects4J.
+InspectCoder~\cite{inspectcoder2025} enables LLMs
+to conduct dynamic analysis via interactive
+debugger control, transforming debugging from
+blind trial-and-error into systematic diagnosis.
+RGD~\cite{rgd2024} employs three distinct LLM
+agents (Guide, Debug, Feedback) to decompose the
+code debugging process.
+
+Self-repair~\cite{olausson2023self} and
+self-debugging~\cite{chen2023teaching} frameworks
+prompt an LLM to revise its own output given an
+error message, without a separate specialized
+agent. Our Debugger agent occupies a similar niche
+but operates within a structured pipeline that
+distinguishes code generation, test generation,
+and repair as distinct subtasks with distinct
+prompts — a separation we find important in our
+ablation study (Section~\ref{sec:ablation}).
+
+\subsection{Agentic and Tool-Using LLM Systems}
+
+ReAct~\cite{yao2023react} introduced the paradigm
+of interleaving reasoning traces (\textit{thoughts})
+with tool invocations (\textit{actions}), enabling
+LLMs to use web search, calculators, and code
+interpreters within an open-ended loop.
+Reflexion~\cite{shinn2023reflexion} extended this
+with verbal reinforcement: the agent reflects on
+its own failures and stores a natural language
+summary in an episodic memory buffer.
+Both systems operate with a single LLM instance
+that must simultaneously plan, act, and evaluate.
+AgentForge instead assigns these roles to distinct
+agents with specialized prompts, following the
+principle that specialization reduces the cognitive
+load placed on any single model call.
+
+Toolformer~\cite{schick2023toolformer} trains a
+model to decide when and how to invoke external
+tools by self-supervised annotation, removing the
+need for explicit tool-use prompting.
+While elegant, this approach requires fine-tuning
+and does not provide the structured pipeline
+guarantees that AgentForge offers for software
+engineering tasks.
+
+\subsection{Multi-Agent LLM Frameworks}
+
+The idea of using multiple cooperating LLM instances
+to solve complex tasks has attracted significant
+recent attention.
+MetaGPT~\cite{hong2023metagpt} encodes software
+engineering roles — product manager, architect,
+engineer, QA — as distinct agents that communicate
+through structured documents, demonstrating that
+role separation improves output quality on
+software project benchmarks.
+ChatDev~\cite{qian2023communicative} uses
+chat-based communication between a CEO, CTO, and
+programmer agent to produce complete small software
+projects, including documentation and unit tests.
+AutoGen~\cite{wu2023autogen} provides a general
+framework for multi-agent conversation in which
+agents can invoke tools, write and execute code,
+and hand off to human proxies.
+
+Recent frameworks have introduced self-evolution,
+competitive collaboration, and structured
+communication. SEMAG~\cite{semag2026} proposes
+self-evolutionary agents that adapt their workflows
+to task difficulty, achieving state-of-the-art
+results on CodeContests. Eco-Evolve~\cite{ecoevolve2026}
+introduces a dynamic agent topology with a dedicated
+Critic agent and error-driven self-evolution via
+Hindsight Experience Replay (HER), achieving strong
+results on SWE-bench Verified. SWE-Debate~\cite{swedebate2026}
+employs competitive multi-agent debate across three
+rounds, leveraging fault propagation traces and
+Monte Carlo Tree Search for patch generation.
+COLLAB-LLM~\cite{collabllm2026} provides a
+structured communication protocol and hierarchical
+role architecture, enabling teams of up to eight
+agents with reduced coordination overhead.
+
+AgentForge differs from these systems in three
+important ways.
+First, it targets \textit{real-world bug fixing}
+on actual GitHub repositories rather than synthetic
+project generation or constrained benchmarks.
+Second, it evaluates generated code in a
+\textit{genuinely isolated} Docker sandbox with
+strict resource caps and networking disabled,
+providing authentic execution feedback that
+cannot be fabricated — a mandatory step in
+every pipeline run.
+Third, it incorporates \textit{dual retrieval}:
+episodic memory of past solved tasks (for
+cross-task transfer) and a live repository index
+(for intra-task grounding), a combination absent
+from prior multi-agent frameworks.
+
+\subsection{Autonomous Software Engineering Agents}
+
+SWE-agent~\cite{yang2024sweagent} introduced an
+agent--computer interface (ACI) that gives a
+single LLM structured access to a shell, editor,
+and search tools, achieving then-state-of-the-art
+results on SWE-bench. Devin~\cite{cognition2024devin}
+demonstrated a commercial system capable of
+completing multi-day engineering tasks end-to-end,
+though its architecture is not publicly disclosed.
+OpenHands~\cite{wang2024openhands} (formerly
+OpenDevin) provides an open-source platform
+for building software engineering agents,
+offering a sandboxed execution environment.
+Trae Agent~\cite{trae2025} implements a test-time
+scaling approach with generation, pruning, and
+selection modules, attaining a Pass@1 score of
+75.20\% on SWE-bench Verified. MAGIS~\cite{magis2024}
+employs Manager, Repository Custodian, Developer,
+and QA agents for GitHub issue resolution.
+
+AgentForge is most directly comparable to
+SWE-agent in scope and evaluation methodology,
+but differs in its \textit{structured multi-agent
+decomposition}: where SWE-agent uses a single
+LLM interacting with shell tools, AgentForge
+uses five specialized agents each with a
+distinct role, a dedicated prompt, and a
+clearly scoped output contract. Our ablation
+study quantifies the value of each agent
+independently, providing interpretable evidence
+for the contribution of each design decision.
+
+\subsection{Benchmarks for Software Engineering}
+
+HumanEval~\cite{chen2021codex} and
+MBPP~\cite{austin2021program} measure function
+synthesis from docstrings — tasks that are well-suited
+to single-shot generation but do not capture the
+complexity of real-world bug fixing.
+SWE-bench~\cite{jimenez2024swebench} addresses
+this gap with 2,294 issues drawn from 12 popular
+Python repositories, each paired with a gold
+patch and a test suite that verifies the fix.
+SWE-bench Lite reduces this to 300 carefully
+filtered instances, balancing evaluation cost
+with statistical power. SWE-bench Verified
+provides a human-validated subset for more
+reliable evaluation. Defects4J~\cite{defects4j}
+is a widely used benchmark for Java program
+repair, employed by systems such as TraceRepair.
+We evaluate on SWE-bench Lite as our primary
+benchmark, following recent convention in the
+agentic software engineering literature~\cite{yang2024sweagent,
+wang2024openhands,zhang2024autocoderover}.
+
+\subsection{Memory and Retrieval in LLM Systems}
+
+Retrieval-augmented generation
+(RAG)~\cite{lewis2020rag} demonstrated that
+augmenting LLM inputs with retrieved passages
+substantially improves factual accuracy on
+knowledge-intensive tasks. In the code domain,
+repository-level code completion
+systems~\cite{zhang2023repocoder,shrivastava2023repofusion}
+retrieve relevant functions and files to provide
+context for the generation model.
+GraphCodeAgent~\cite{graphcodeagent2025} introduces
+a dual-graph approach (Requirement Graph and
+Structural-Semantic Code Graph) to guide multi-hop
+retrieval for repository-level tasks.
+
+AgentForge extends this paradigm with a
+\textit{dual retrieval} strategy: an episodic
+memory of past solved tasks (for cross-task
+transfer) and a live repository index (for
+intra-task grounding), both backed by the same
+ChromaDB vector store and queried by cosine
+similarity of OpenAI text embeddings.
+To our knowledge, this is the first system to
+combine both retrieval sources within an
+agentic software engineering pipeline.
