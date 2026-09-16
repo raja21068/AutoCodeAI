@@ -122,8 +122,18 @@ async def run_instance(instance: dict, cfg: RepairConfig, kind: str,
     record_path = out_dir / "trajectories" / f"{instance_id}.json"
 
     if resume and record_path.exists():
-        logger.info("Skipping %s (already complete)", instance_id)
-        return json.loads(record_path.read_text(encoding="utf-8"))
+        previous = json.loads(record_path.read_text(encoding="utf-8"))
+        # Resume must mean "already done", not "already attempted". A record
+        # carrying an error is a failure -- a provider outage, an exhausted
+        # account balance, a transient container problem -- and treating it
+        # as complete bakes that failure in permanently: the retry silently
+        # skips exactly the instances that need retrying, and the run reports
+        # a resolve rate over a population that never ran.
+        if not previous.get("error"):
+            logger.info("Skipping %s (already complete)", instance_id)
+            return previous
+        logger.info("Retrying %s (previous attempt errored: %s)",
+                    instance_id, str(previous.get("error"))[:80])
 
     logger.info("Running %s", instance_id)
     started = time.time()
@@ -155,7 +165,12 @@ async def run_instance(instance: dict, cfg: RepairConfig, kind: str,
     record["timestamp"] = datetime.now(timezone.utc).isoformat()
 
     record_path.parent.mkdir(parents=True, exist_ok=True)
-    record_path.write_text(json.dumps(record, indent=2), encoding="utf-8")
+    # jsonable(), not a bare dumps: this write happens after the agent has
+    # finished, so anything it raises destroys completed work. It previously
+    # raised on the frozenset in the embedded config, and because the caller
+    # gathers with return_exceptions the instance was dropped silently.
+    record_path.write_text(json.dumps(jsonable(record), indent=2),
+                           encoding="utf-8")
     logger.info(
         "%s → patch=%s chars, stop=%s, %.0fs",
         instance_id, len(record.get("model_patch") or ""),
@@ -164,7 +179,7 @@ async def run_instance(instance: dict, cfg: RepairConfig, kind: str,
     return record
 
 
-async def main() -> None:
+async def main() -> int:
     args = parse_args()
     cfg = build_config(args)
 
@@ -213,6 +228,20 @@ async def main() -> None:
     )
     valid = [r for r in records if isinstance(r, dict)]
 
+    # An instance that raised outside run_instance's own handler is silently
+    # absent from `valid`. Left unreported, a run in which every instance blew
+    # up writes an empty predictions file, prints a tidy summary and exits 0 —
+    # indistinguishable from a run that legitimately found nothing. Surface
+    # each one, and refuse to call a total loss a success.
+    crashed = [r for r in records if isinstance(r, BaseException)]
+    for instance, outcome in zip(instances, records):
+        if isinstance(outcome, BaseException):
+            logger.error("Instance %s crashed outside its handler: %s: %s",
+                         instance["instance_id"], type(outcome).__name__, outcome)
+    if crashed:
+        logger.error("%d of %d instances produced no record at all",
+                     len(crashed), len(instances))
+
     # Official prediction format.
     model_name = f"agentforge-{args.config}-{args.model}"
     predictions_path = out_dir / "predictions.jsonl"
@@ -253,7 +282,8 @@ async def main() -> None:
 
     print("\n" + "=" * 66)
     print(f"  Predictions written: {predictions_path}")
-    print(f"  Instances          : {summary['instances']}")
+    print(f"  Instances          : {summary['instances']} of {len(instances)}")
+    print(f"  Crashed            : {len(crashed)}")
     print(f"  Non-empty patches  : {summary['nonempty_patches']}")
     print(f"  Total cost         : ${summary['totals']['cost_usd']}")
     print(f"  Executions         : {summary['totals']['executions']}")
@@ -261,6 +291,13 @@ async def main() -> None:
     print(f"    python -m eval.run_official_eval --run_id {args.run_id}")
     print("=" * 66)
 
+    # Exit status is what callers and CI actually branch on, so it has to
+    # distinguish "ran and found nothing" from "never ran".
+    if instances and not valid:
+        logger.error("No instance produced a record; refusing to report success.")
+        return 1
+    return 0
+
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    raise SystemExit(asyncio.run(main()))

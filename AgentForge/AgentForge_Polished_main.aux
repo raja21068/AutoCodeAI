@@ -1,0 +1,136 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{chen2021codex,jimenez2024swebench}
+\citation{yang2024sweagent,wang2024openhands,zhang2024autocoderover}
+\citation{tao2024magis,khanzadeh2025agentmesh,hong2023metagpt,qian2023chatdev}
+\@writefile{toc}{\contentsline {section}{\numberline {I}Introduction}{1}{section.1}\protected@file@percent }
+\newlabel{sec:intro}{{I}{1}{Introduction}{section.1}{}}
+\citation{yang2024sweagent,wang2024openhands}
+\citation{chen2021codex,li2022alphacode,li2023starcoder,roziere2023codellama}
+\citation{le2012genprog}
+\citation{xia2022less,jin2023inferfix,fan2023automated,chen2023teaching,olausson2023selfrepair}
+\citation{yao2023react,shinn2023reflexion}
+\citation{yang2024sweagent}
+\citation{wang2024openhands}
+\citation{zhang2024autocoderover}
+\citation{hong2023metagpt,qian2023chatdev}
+\citation{wu2023autogen}
+\citation{tao2024magis}
+\citation{khanzadeh2025agentmesh}
+\citation{zhang2023repocoder,shrivastava2023repofusion}
+\citation{lewis2020rag}
+\citation{shinn2023reflexion}
+\@writefile{toc}{\contentsline {section}{\numberline {II}Related Work}{2}{section.4}\protected@file@percent }
+\newlabel{sec:related}{{II}{2}{Related Work}{section.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-A}}Code Generation and Automated Program Repair}{2}{subsection.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-B}}Tool-Using Software Engineering Agents}{2}{subsection.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-C}}Multi-Agent Software Engineering}{2}{subsection.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-D}}Repository Retrieval and Memory}{2}{subsection.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {III}AgentForge}{2}{section.9}\protected@file@percent }
+\newlabel{sec:method}{{III}{2}{AgentForge}{section.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-A}}Problem Definition and Information Boundary}{2}{subsection.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-B}}Roles and Shared State}{2}{subsection.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-B}0a}Planner.}{2}{paragraph.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-B}0b}Coder.}{2}{paragraph.13}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-B}0c}Tester.}{2}{paragraph.14}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-B}0d}Debugger.}{2}{paragraph.15}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Conceptual architecture of \textsc  {AgentForge}{}. For benchmark evaluation, the repository is initialized from the base commit, cross-instance memory is disabled, and all state-changing edits are followed by execution in the same task environment. The figure is architectural; the official benchmark harness independently evaluates the final patch.}}{3}{figure.3}\protected@file@percent }
+\newlabel{fig:overview}{{1}{3}{Conceptual architecture of \agentforge {}. For benchmark evaluation, the repository is initialized from the base commit, cross-instance memory is disabled, and all state-changing edits are followed by execution in the same task environment. The figure is architectural; the official benchmark harness independently evaluates the final patch}{figure.3}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-B}0e}Critic.}{3}{paragraph.16}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-C}}Post-Edit Execution Invariant}{3}{subsection.17}\protected@file@percent }
+\newlabel{sec:invariant}{{\mbox  {III-C}}{3}{Post-Edit Execution Invariant}{subsection.17}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-D}}Execution Signals and Test Separation}{3}{subsection.46}\protected@file@percent }
+\@writefile{loa}{\contentsline {algorithm}{\numberline {1}{\ignorespaces AgentForge repair loop. The execution flag $x$ is owned by the orchestrator, not by the plan; line~\ref {line:guard} is an assertion that fails the run rather than a branch the Planner can influence.}}{4}{algorithm.19}\protected@file@percent }
+\newlabel{alg:main}{{1}{4}{Post-Edit Execution Invariant}{algorithm.19}{}}
+\newlabel{line:guard}{{5}{4}{Post-Edit Execution Invariant}{ALC@unique.24}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-E}}Repository Retrieval and Episodic Memory}{4}{subsection.50}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-F}}Sandbox and Repository Environment}{4}{subsection.51}\protected@file@percent }
+\citation{jimenez2024swebench}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-G}}Verifying the Invariants}{5}{subsection.52}\protected@file@percent }
+\newlabel{sec:verification}{{\mbox  {III-G}}{5}{Verifying the Invariants}{subsection.52}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {IV}Experimental Design}{5}{section.53}\protected@file@percent }
+\newlabel{sec:experiments}{{IV}{5}{Experimental Design}{section.53}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-A}}Benchmark}{5}{subsection.54}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-B}}Leakage-Free Evaluation Protocol}{5}{subsection.55}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-C}}Controlled Comparisons}{5}{subsection.56}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces Controlled configurations. ``Forced execution'' means the Orchestrator blocks further edits until a post-edit command has run and its outcome has been recorded. The four rows above the rule form the primary factorial; ReAct is a matched single-agent comparison; the single call is a floor.}}{6}{table.58}\protected@file@percent }
+\newlabel{tab:configs}{{I}{6}{Controlled configurations. ``Forced execution'' means the Orchestrator blocks further edits until a post-edit command has run and its outcome has been recorded. The four rows above the rule form the primary factorial; ReAct is a matched single-agent comparison; the single call is a floor}{table.58}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-D}}Budget and Implementation Controls}{6}{subsection.59}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-E}}Metrics and Statistical Analysis}{6}{subsection.60}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {V}Results}{6}{section.61}\protected@file@percent }
+\newlabel{sec:results}{{V}{6}{Results}{section.61}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-A}}Main Results}{6}{subsection.62}\protected@file@percent }
+\citation{xia2024agentless}
+\citation{yang2024sweagent}
+\citation{swebenchleaderboard}
+\citation{zhang2024autocoderover}
+\citation{swebenchleaderboard}
+\citation{wang2024openhands,swebenchleaderboard}
+\citation{tao2024magis}
+\citation{swebenchleaderboard}
+\citation{swebenchleaderboard}
+\citation{swebenchleaderboard}
+\citation{swebenchleaderboard}
+\@writefile{lot}{\contentsline {table}{\numberline {II}{\ignorespaces \textsc  {SWE-bench}{} Lite results and generation-stage statistics on the seeded 50-instance subset. Official resolution is reported only where a saved official harness report is available; ungraded configurations are marked ``Not graded.'' The \textsc  {AgentForge}{} confidence interval is exact Clopper--Pearson. Patch rate, mean cost, and mean executions are computed per attempted task from the released run records.}}{7}{table.64}\protected@file@percent }
+\newlabel{tab:main}{{II}{7}{\swebench {} Lite results and generation-stage statistics on the seeded 50-instance subset. Official resolution is reported only where a saved official harness report is available; ungraded configurations are marked ``Not graded.'' The \agentforge {} confidence interval is exact Clopper--Pearson. Patch rate, mean cost, and mean executions are computed per attempted task from the released run records}{table.64}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-B}}Published Results in Context}{7}{subsection.65}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {III}{\ignorespaces Published \textsc  {SWE-bench}{} Lite results from prior work, for context only. Entries differ in model, budget, scaffold and harness version simultaneously, so no difference is attributed to a single cause and no significance test is applied. Leaderboard figures are self-reported and not independently reproduced. Cost is reproduced as reported by each source; a dash denotes a figure the source does not report.}}{7}{table.67}\protected@file@percent }
+\newlabel{tab:published}{{III}{7}{Published \swebench {} Lite results from prior work, for context only. Entries differ in model, budget, scaffold and harness version simultaneously, so no difference is attributed to a single cause and no significance test is applied. Leaderboard figures are self-reported and not independently reproduced. Cost is reproduced as reported by each source; a dash denotes a figure the source does not report}{table.67}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {IV}{\ignorespaces Resource use per attempted task for the four factorial arms in the supplied diagnostic run. Values are computed from the 50 task-level trajectories; the same 22 instances were aborted by the leakage guard in all four arms and therefore contribute zero post-abort model usage. Cost is median with interquartile range.}}{7}{table.70}\protected@file@percent }
+\newlabel{tab:cost}{{IV}{7}{Resource use per attempted task for the four factorial arms in the supplied diagnostic run. Values are computed from the 50 task-level trajectories; the same 22 instances were aborted by the leakage guard in all four arms and therefore contribute zero post-abort model usage. Cost is median with interquartile range}{table.70}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-C}}Equal-Budget and Cost-Effectiveness Analysis}{7}{subsection.68}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-D}}Ablation Study}{7}{subsection.71}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {V}{\ignorespaces Status of the pre-specified ablation runs in the supplied artifact. Because most ablations have no official harness report and several were interrupted by provider API failures, resolution effects and paired differences are not reported. ``Completed'' counts trajectories that reached the repair loop without a top-level run error.}}{8}{table.73}\protected@file@percent }
+\newlabel{tab:ablation}{{V}{8}{Status of the pre-specified ablation runs in the supplied artifact. Because most ablations have no official harness report and several were interrupted by provider API failures, resolution effects and paired differences are not reported. ``Completed'' counts trajectories that reached the repair loop without a top-level run error}{table.73}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-E}}Failure Analysis}{8}{subsection.74}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {VI}Threats to Validity}{8}{section.75}\protected@file@percent }
+\newlabel{sec:threats}{{VI}{8}{Threats to Validity}{section.75}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VI-}0a}Construct validity.}{8}{paragraph.76}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VI-}0b}Internal validity.}{8}{paragraph.77}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VI-}0c}External validity.}{8}{paragraph.78}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VI-}0d}Memory and contamination.}{8}{paragraph.79}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VI-}0e}Security.}{8}{paragraph.80}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {VII}Conclusion}{8}{section.81}\protected@file@percent }
+\newlabel{sec:conclusion}{{VII}{8}{Conclusion}{section.81}{}}
+\bibstyle{IEEEtran}
+\bibdata{ref}
+\bibcite{chen2021codex}{{1}{}{{}}{{}}}
+\@writefile{toc}{\contentsline {section}{Appendix\nobreakspace  A: Agent Prompts}{9}{section*.84}\protected@file@percent }
+\newlabel{app:prompts}{{A}{9}{\appendixname \nobreakspace \thesectiondis \\* Agent Prompts}{section*.84}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {A-A}}Planner}{9}{subsection.85}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {A-B}}Coder}{9}{subsection.86}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {A-C}}Tester}{9}{subsection.87}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {A-D}}Debugger}{9}{subsection.88}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {A-E}}Critic}{9}{subsection.89}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {A-F}}Single-Agent Control}{9}{subsection.90}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{Appendix\nobreakspace  B: Reproducibility Checklist}{9}{section*.92}\protected@file@percent }
+\newlabel{app:repro}{{B}{9}{\appendixname \nobreakspace \thesectiondis \\* Reproducibility Checklist}{section*.92}{}}
+\bibcite{jimenez2024swebench}{{2}{}{{}}{{}}}
+\bibcite{yang2024sweagent}{{3}{}{{}}{{}}}
+\bibcite{wang2024openhands}{{4}{}{{}}{{}}}
+\bibcite{zhang2024autocoderover}{{5}{}{{}}{{}}}
+\bibcite{tao2024magis}{{6}{}{{}}{{}}}
+\bibcite{khanzadeh2025agentmesh}{{7}{}{{}}{{}}}
+\bibcite{hong2023metagpt}{{8}{}{{}}{{}}}
+\bibcite{qian2023chatdev}{{9}{}{{}}{{}}}
+\bibcite{li2022alphacode}{{10}{}{{}}{{}}}
+\bibcite{li2023starcoder}{{11}{}{{}}{{}}}
+\bibcite{roziere2023codellama}{{12}{}{{}}{{}}}
+\bibcite{le2012genprog}{{13}{}{{}}{{}}}
+\bibcite{xia2022less}{{14}{}{{}}{{}}}
+\bibcite{jin2023inferfix}{{15}{}{{}}{{}}}
+\bibcite{fan2023automated}{{16}{}{{}}{{}}}
+\bibcite{chen2023teaching}{{17}{}{{}}{{}}}
+\bibcite{olausson2023selfrepair}{{18}{}{{}}{{}}}
+\bibcite{yao2023react}{{19}{}{{}}{{}}}
+\bibcite{shinn2023reflexion}{{20}{}{{}}{{}}}
+\bibcite{wu2023autogen}{{21}{}{{}}{{}}}
+\bibcite{zhang2023repocoder}{{22}{}{{}}{{}}}
+\bibcite{shrivastava2023repofusion}{{23}{}{{}}{{}}}
+\bibcite{lewis2020rag}{{24}{}{{}}{{}}}
+\bibcite{xia2024agentless}{{25}{}{{}}{{}}}
+\bibcite{swebenchleaderboard}{{26}{}{{}}{{}}}
+\providecommand\NAT@force@numbers{}\NAT@force@numbers
+\gdef \@abspage@last{10}

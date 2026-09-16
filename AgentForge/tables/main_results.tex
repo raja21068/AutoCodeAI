@@ -1,0 +1,15 @@
+% Table II: populated from supplied 50-task run summaries.
+% Official resolution is reported only where a saved SWE-bench harness report exists.
+\begin{tabular}{lccccc}
+\toprule
+Method & Resolved & Resolve rate [95\% CI] & Patch rate & Mean cost & Mean execs \\
+\midrule
+Single call, no tools & Not graded & Not graded & 18.0\% & \$0.0005 & 0.00 \\
+ReAct & Not graded & Not graded & 0.0\% & \$0.0056 & 0.10 \\
+\midrule
+Single, optional execution & Not graded & Not graded & 14.0\% & \$0.0022 & 0.00 \\
+Single, forced execution & Not graded & Not graded & 18.0\% & \$0.0024 & 0.20 \\
+Multi-agent, optional execution & Not graded & Not graded & 28.0\% & \$0.0051 & 0.74 \\
+\textbf{\agentforge{}} & \textbf{1/50} & \textbf{2.0\% [0.05\%, 10.65\%]} & \textbf{24.0\%} & \textbf{\$0.0056} & \textbf{0.60} \\
+\bottomrule
+\end{tabular}

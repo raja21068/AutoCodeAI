@@ -1,0 +1,63 @@
+This is BibTeX, Version 0.99e
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: paper_build.aux
+Reallocating 'name_of_file' (item size: 1) to 9 items.
+The style file: IEEEtran.bst
+Reallocating 'name_of_file' (item size: 1) to 4 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Reallocating 'wiz_functions' (item size: 4) to 6000 items.
+Reallocating 'singl_function' (item size: 4) to 100 items.
+Database file #1: ref.bib
+Repeated entry---line 438 of file ref.bib
+ : @misc{xia2024agentless
+ :                       ,
+I'm skipping whatever remains of this entry
+-- IEEEtran.bst version 1.14 (2015/08/26) by Michael Shell.
+-- http://www.michaelshell.org/tex/ieeetran/bibtex/
+-- See the "IEEEtran_bst_HOWTO.pdf" manual for usage information.
+
+Done.
+You've used 26 entries,
+            4087 wiz_defined-function locations,
+            925 strings with 11400 characters,
+and the built_in function-call counts, 12258 in all, are:
+= -- 853
+> -- 369
+< -- 10
++ -- 182
+- -- 89
+* -- 498
+:= -- 1933
+add.period$ -- 52
+call.type$ -- 26
+change.case$ -- 33
+chr.to.int$ -- 18
+cite$ -- 26
+duplicate$ -- 1035
+empty$ -- 1180
+format.name$ -- 113
+if$ -- 2780
+int.to.chr$ -- 0
+int.to.str$ -- 26
+missing$ -- 252
+newline$ -- 101
+num.names$ -- 26
+pop$ -- 716
+preamble$ -- 1
+purify$ -- 0
+quote$ -- 2
+skip$ -- 926
+stack$ -- 0
+substring$ -- 82
+swap$ -- 613
+text.length$ -- 4
+text.prefix$ -- 0
+top$ -- 5
+type$ -- 26
+warning$ -- 0
+while$ -- 30
+width$ -- 28
+write$ -- 223
+(There was 1 error message)

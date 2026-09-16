@@ -87,6 +87,23 @@ class RepairConfig:
     max_wall_clock_s: float = 900.0
     exec_timeout_s: int = 300
 
+    def as_dict(self) -> dict:
+        """
+        JSON-safe view of the configuration.
+
+        Every record this config is embedded in gets written with
+        ``json.dumps``, and ``disabled_roles`` is a frozenset, which json
+        rejects. Handing out ``vars(self)`` therefore produced a record that
+        could not be serialised — and because the failure happens at write
+        time, after the agent has finished, the whole instance was discarded
+        once its work was already paid for. Sets are emitted sorted so the
+        same configuration always serialises identically.
+        """
+        out: dict = {}
+        for key, value in vars(self).items():
+            out[key] = sorted(value) if isinstance(value, (set, frozenset)) else value
+        return out
+
 
 @dataclass
 class Budget:
@@ -358,7 +375,7 @@ class RepairOrchestrator:
             "stop_reason": stop_reason,
             "trajectory": trajectory,
             "budget": budget.as_dict(),
-            "config": vars(self.config),
+            "config": self.config.as_dict(),
         }
 
     # ------------------------------------------------------------------

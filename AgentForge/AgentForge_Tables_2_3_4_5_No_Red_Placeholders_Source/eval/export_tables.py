@@ -1,0 +1,288 @@
+"""
+eval/export_tables.py
+---------------------
+Generate the manuscript's results tables from run artifacts.
+
+The rejected version of this paper reported numbers that the code could not
+have produced. Whatever else went wrong, a manuscript whose tables are typed
+by hand has no mechanical link between what was run and what is claimed, and
+no reviewer — or author — can tell the difference between a transcription
+slip and a fabrication.
+
+This module removes the transcription step. It reads ``official_report.json``
+and ``run_summary.json`` from run directories, and writes LaTeX table
+*bodies* that the manuscript ``\\input``s. Nothing in the paper is a literal
+number; every figure in a results table is generated from an artifact on
+disk, and regenerating after a rerun updates the paper.
+
+Two properties are deliberate:
+
+* **Missing runs are visible, not blank.** A configuration with no run
+  emits the red TBD placeholder, so a partially-complete sweep compiles
+  into a paper that is obviously incomplete rather than one that quietly
+  omits a row.
+* **Nothing is graded here.** Resolution comes from the official report.
+  This module formats; it does not decide anything.
+
+Usage:
+    python -m eval.export_tables --results_dir eval/results --out AgentForge/tables
+    python -m eval.export_tables --results_dir eval/results --prefix full_
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import logging
+import statistics
+from pathlib import Path
+
+from eval.analyze_results import clopper_pearson, load_run
+from eval.configs import ABLATIONS, BASELINES, FACTORIAL
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+logger = logging.getLogger(__name__)
+
+#: Matches \res in the manuscript preamble, so a missing cell reads the same
+#: whether the table is hand-written or generated.
+TBD = r"\res"
+
+MAIN_ORDER = [
+    ("single_call",      "Single call, no tools"),
+    ("react",            "ReAct"),
+    ("single_optional",  "Single, optional execution"),
+    ("single_forced",    "Single, forced execution"),
+    ("multi_optional",   "Multi-agent, optional execution"),
+    ("agentforge",       r"\agentforge{}"),
+]
+
+ABLATION_ORDER = [
+    ("agentforge",          r"Full \agentforge{}"),
+    ("no_planner",          "Without Planner"),
+    ("no_tester",           "Without Tester"),
+    ("no_debugger",         "Without Debugger"),
+    ("no_critic",           "Without Critic"),
+    ("no_retrieval",        "Without repository retrieval"),
+    ("no_generated_tests",  "Without generated tests"),
+]
+
+
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Emit LaTeX tables from run artifacts")
+    p.add_argument("--results_dir", default="eval/results")
+    p.add_argument("--out", default="AgentForge/tables")
+    p.add_argument("--prefix", default="",
+                   help="run_id prefix, e.g. 'full_' for full_agentforge")
+    p.add_argument("--instance_file", default=None,
+                   help="subset file the runs used; its n, seed and per-repo "
+                        "counts are emitted as table provenance")
+    return p.parse_args()
+
+
+def write_provenance(path: Path, instance_file: str | None, graded: int,
+                     total: int) -> None:
+    """
+    Emit a sentence describing the population the tables summarise.
+
+    A resolve rate is meaningless without the denominator it was measured
+    over. Reported on a subset, it also needs the subset to be identifiable,
+    or a reader cannot tell a representative sample from a convenient one.
+    Both facts belong on the table rather than in prose several pages away,
+    and both are derived here from the artifacts so they cannot drift out of
+    step with the numbers beside them.
+
+    The graded count is stated explicitly and deliberately: a table of
+    placeholders should read as an incomplete run, not as an omission.
+    """
+    parts: list[str] = []
+
+    if instance_file:
+        try:
+            meta = json.loads(Path(instance_file).read_text(encoding="utf-8"))
+            n = meta.get("n", len(meta.get("instance_ids", [])))
+            seed = meta.get("seed")
+            repos = len(meta.get("per_repo", {}))
+            split = meta.get("split", "lite")
+            parts.append(
+                f"Reported on a seeded stratified subset of {n} "
+                f"\\swebench{{}} {split} instances spanning {repos} "
+                f"repositories (seed {seed}); the subset file is released "
+                f"so the selection can be regenerated and checked."
+            )
+        except Exception as exc:  # pragma: no cover - malformed subset file
+            logger.warning("could not read %s: %s", instance_file, exc)
+
+    if graded < total:
+        parts.append(
+            f"\\textcolor{{red!70!black}}{{\\textbf{{Incomplete: {graded} of "
+            f"{total} configurations have been graded; remaining entries are "
+            f"placeholders.}}}}"
+        )
+
+    header = "% Generated by eval.export_tables - do not edit by hand.\n"
+    path.write_text(header + " ".join(parts) + "\n", encoding="utf-8")
+    logger.info("Provenance: wrote %s (%d/%d graded)", path, graded, total)
+
+
+def try_load(config: str, results_dir: Path, prefix: str):
+    """Load a run, or return None when it has not been produced yet."""
+    run_id = f"{prefix}{config}"
+    run_dir = results_dir / run_id
+    if not (run_dir / "official_report.json").exists():
+        return None
+    try:
+        return load_run(run_id, results_dir)
+    except Exception as exc:
+        # A malformed artifact must not silently become a blank row.
+        logger.warning("%s exists but could not be loaded: %s", run_id, exc)
+        return None
+
+
+def main_rows(results_dir: Path, prefix: str) -> tuple[str, int]:
+    rows, found = [], 0
+    for config, label in MAIN_ORDER:
+        # The reference arms sit above the rule; the four factorial arms sit
+        # below it. Emitting the rule here keeps the table's structure in the
+        # generator rather than split between it and the manuscript.
+        if config == "single_optional":
+            rows.append(r"\midrule")
+        run = try_load(config, results_dir, prefix)
+        if run is None:
+            execs = "0" if config == "single_call" else TBD
+            rows.append(f"{label} & {TBD} & {TBD} & {TBD} & {TBD} & {execs} \\\\")
+            continue
+        found += 1
+        n, k = len(run.submitted), len(run.resolved)
+        low, high = clopper_pearson(k, n)
+        costs = [run.per_instance_cost.get(i, 0.0) for i in run.submitted]
+        mean_cost = statistics.fmean(costs) if costs else 0.0
+        mean_execs = statistics.fmean(
+            [run.per_instance_execs.get(i, 0) for i in run.submitted]) if n else 0.0
+        rows.append(
+            f"{label} & {k}/{n} & "
+            f"{run.resolve_rate:.1%} [{low:.1%}, {high:.1%}] & "
+            f"{run.patch_rate:.1%} & \\${mean_cost:.2f} & "
+            f"{mean_execs:.1f} \\\\".replace("%", r"\%")
+        )
+    return "\n".join(rows), found
+
+
+def ablation_rows(results_dir: Path, prefix: str) -> tuple[str, int]:
+    baseline = try_load("agentforge", results_dir, prefix)
+    rows, found = [], 0
+    for config, label in ABLATION_ORDER:
+        run = try_load(config, results_dir, prefix)
+        if run is None:
+            # The baseline row has no paired difference against itself, in
+            # every state of the table.
+            delta = "--" if config == "agentforge" else TBD
+            rows.append(f"{label} & {TBD} & {delta} \\\\")
+            continue
+        found += 1
+        rate = f"{run.resolve_rate:.1%}".replace("%", r"\%")
+        if config == "agentforge" or baseline is None:
+            delta = "--" if config == "agentforge" else TBD
+        else:
+            # Paired difference over the shared instance list; an unpaired
+            # difference of two aggregate rates is not a meaningful quantity.
+            shared = run.submitted & baseline.submitted
+            if not shared:
+                delta = TBD
+            else:
+                a = len(run.resolved & shared) / len(shared)
+                b = len(baseline.resolved & shared) / len(shared)
+                delta = f"{a - b:+.1%}".replace("%", r"\%")
+        rows.append(f"{label} & {rate} & {delta} \\\\")
+    return "\n".join(rows), found
+
+
+def budget_rows(results_dir: Path, prefix: str) -> tuple[str, int]:
+    rows, found = [], 0
+    for config, label in MAIN_ORDER[2:]:          # factorial arms only
+        run = try_load(config, results_dir, prefix)
+        if run is None:
+            rows.append(f"{label} & {TBD} & {TBD} & {TBD} & {TBD} \\\\")
+            continue
+        found += 1
+        ids = run.submitted
+        tokens = statistics.fmean([run.per_instance_tokens.get(i, 0) for i in ids])
+        calls = statistics.fmean([run.per_instance_calls.get(i, 0) for i in ids])
+        execs = statistics.fmean([run.per_instance_execs.get(i, 0) for i in ids])
+        costs = sorted(run.per_instance_cost.get(i, 0.0) for i in ids)
+        # Median and IQR, not the mean: agent trajectories are heavy-tailed,
+        # and a few instances that exhaust the iteration budget dominate a
+        # mean without being representative of the typical task.
+        median = statistics.median(costs)
+        q1, q3 = (statistics.quantiles(costs, n=4)[0],
+                  statistics.quantiles(costs, n=4)[2]) if len(costs) > 1 else (
+                      median, median)
+        rows.append(
+            f"{label} & {tokens:,.0f} & {calls:.1f} & {execs:.1f} & "
+            f"\\${median:.2f} (\\${q1:.2f}--\\${q3:.2f}) \\\\"
+        )
+    return "\n".join(rows), found
+
+
+def write(path: Path, body: str, found: int, total: int, what: str,
+          colspec: str, heading: str) -> None:
+    """
+    Write a complete ``tabular`` environment.
+
+    The generated file holds the whole table, not just its rows, because
+    ``\\input`` inside an open ``tabular`` leaves the alignment mid-cell: the
+    ``\\bottomrule`` that follows is then a misplaced ``\\noalign`` and the
+    document does not compile. Emitting the environment from here also keeps
+    the column specification next to the code that decides how many columns
+    there are.
+    """
+    # ASCII only: this file is \input by the manuscript, and a stray
+    # non-ASCII byte in a comment is a needless way to break a LaTeX build.
+    text = (
+        f"% Generated by eval.export_tables - do not edit by hand.\n"
+        f"% {found}/{total} configurations have official reports.\n"
+        f"\\begin{{tabular}}{{{colspec}}}\n"
+        f"\\toprule\n"
+        f"{heading} \\\\\n"
+        f"\\midrule\n"
+        f"{body}\n"
+        f"\\bottomrule\n"
+        f"\\end{{tabular}}\n"
+    )
+    path.write_text(text, encoding="utf-8")
+    level = logger.info if found == total else logger.warning
+    level("%s: wrote %s (%d/%d configurations present)",
+          what, path, found, total)
+
+
+def main() -> int:
+    args = parse_args()
+    results_dir = Path(args.results_dir)
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+
+    body, found = main_rows(results_dir, args.prefix)
+    write(out / "main_results.tex", body, found, len(MAIN_ORDER), "Main results",
+          "lccccc",
+          r"Method & Resolved & Resolve rate [95\% CI] & Patch rate & "
+          r"Mean cost & Execs")
+
+    body, found_abl = ablation_rows(results_dir, args.prefix)
+    write(out / "ablation.tex", body, found_abl, len(ABLATION_ORDER), "Ablation",
+          "lcc", "Configuration & Resolve rate & Paired difference")
+
+    body, found_bud = budget_rows(results_dir, args.prefix)
+    write(out / "budget.tex", body, found_bud, len(MAIN_ORDER) - 2, "Budget",
+          "lrrrr", "Method & Tokens & Calls & Executions & Median cost (IQR)")
+
+    write_provenance(out / "provenance.tex", args.instance_file,
+                     found, len(MAIN_ORDER))
+
+    if found == 0 and found_abl == 0 and found_bud == 0:
+        logger.warning("No official reports found under %s — every table is "
+                       "placeholders. Grade a run with eval.run_official_eval "
+                       "first.", results_dir)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

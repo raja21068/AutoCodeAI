@@ -243,7 +243,28 @@ class InstanceEnv:
         if code == 0:
             return True, "applied with git apply"
 
-        code2, out2, err2 = self.exec("patch -p1 --fuzz=5 -i .agent.patch")
+        # ``patch`` needs three guards that its defaults do not provide.
+        #
+        # --batch: without it, a malformed diff makes patch prompt "File to
+        #   patch:" and block on stdin until the command timeout. Models
+        #   produce malformed diffs often enough that this silently consumed
+        #   minutes of a run's wall-clock budget.
+        # --no-backup-if-mismatch and -r /dev/null: otherwise patch writes
+        #   .orig backups and .rej reject files into the tree, which the next
+        #   ``git add -A`` stages and ships to the grader as part of the model
+        #   patch.
+        # --dry-run first: patch applies hunks as it goes and can leave the
+        #   tree half-modified while still exiting non-zero. The caller treats
+        #   a failed apply as "the repository did not change, so no execution
+        #   is owed", so a partial application would mutate the repository
+        #   with no execution recorded against it.
+        flags = "-p1 --batch --fuzz=5 --no-backup-if-mismatch -r /dev/null"
+        probe, _, probe_err = self.exec(f"patch {flags} --dry-run -i .agent.patch")
+        if probe != 0:
+            return False, (f"git apply: {err.strip()}\n"
+                           f"patch (dry run): {probe_err.strip()}")
+
+        code2, out2, err2 = self.exec(f"patch {flags} -i .agent.patch")
         if code2 == 0:
             return True, "applied with patch -p1"
 
@@ -252,10 +273,16 @@ class InstanceEnv:
     def diff(self) -> str:
         """Return the model patch: working tree vs. the base commit."""
         # Stage new files so they appear in the diff, but never ship our own
-        # scratch file to the grader.
+        # scratch files to the grader. Alongside .agent.patch, ``patch`` can
+        # leave .orig backups and .rej reject files; these were reaching the
+        # grader as additions to the repository, inflating the model patch
+        # with a verbatim copy of the original source and a record of the
+        # hunks that failed. Belt and braces with the flags in apply_patch,
+        # since a .rej in the submitted diff is silent and looks like output.
         self.exec("rm -f .agent.patch")
+        self.exec(r"find . -name '*.orig' -o -name '*.rej' | xargs -r rm -f")
         self.exec("git add -A")
-        self.exec(f"git reset -q -- .agent.patch")
+        self.exec("git reset -q -- .agent.patch")
         code, out, _ = self.exec(f"git diff --cached {self.base_commit}")
         return out if code == 0 else ""
 

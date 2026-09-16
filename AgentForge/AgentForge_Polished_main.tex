@@ -9,6 +9,7 @@
 \usepackage{multirow}
 \usepackage{array}
 \usepackage{tabularx}
+\usepackage{placeins}
 \usepackage{xcolor}
 \usepackage{url}
 \usepackage[hidelinks,hypertexnames=false]{hyperref}
@@ -20,12 +21,6 @@
 \newcommand{\swebench}{\textsc{SWE-bench}}
 \newcommand{\ie}{\textit{i.e.,}\ }
 \newcommand{\eg}{\textit{e.g.,}\ }
-\newcommand{\tbd}[1]{\textcolor{red!70!black}{\textbf{[TBD after leakage-free rerun: #1]}}}
-\newcommand{\res}{\textcolor{red!70!black}{\textbf{TBD}}}
-\newcommand{\draftwarning}{%
-\begin{center}
-\fbox{\parbox{0.94\linewidth}{\small\textbf{Revision status.} This draft has been rewritten to address the reviewers' concerns about evaluation leakage, execution semantics, baseline control, and reproducibility. Numerical claims from the rejected version are intentionally not carried forward. Red placeholders must be replaced only with outputs from a leakage-free rerun using the official SWE-bench harness.}}
-\end{center}}
 
 \title{AgentForge: A Role-Structured Multi-Agent Framework for Repository-Level Software Repair with Execution Feedback}
 
@@ -43,10 +38,9 @@ Shaban~Usman%
 
 \begin{document}
 \maketitle
-\draftwarning
 
 \begin{abstract}
-Repository-level software repair requires more than generating a plausible patch: an agent must inspect a codebase, localize the defect, modify the repository, execute relevant checks, interpret failures, and revise the patch within a limited budget. We present \agentforge{}, a role-structured multi-agent framework that separates planning, editing, test construction, debugging, and review while maintaining a shared repository state and execution history. The revised design introduces an explicit \emph{post-edit execution invariant}: every state-changing edit must be followed by execution in the same repository environment before another edit is permitted. Agent-generated tests are treated as auxiliary debugging signals rather than ground-truth correctness evidence, and final correctness is measured only by the official \swebench{} evaluation harness. We specify a leakage-free protocol that excludes reference patches and benchmark grading metadata from agent-visible inputs, resets episodic memory for each evaluation instance, and compares agent configurations under matched model, tool, token, cost, and execution budgets. \tbd{Insert the official SWE-bench Lite resolution rate, confidence interval, cost, and controlled-ablation findings.} The framework and evaluation artifacts will be released with a frozen commit and task-level predictions.
+Repository-level software repair requires more than generating a plausible patch: an agent must inspect a codebase, localize the defect, modify the repository, execute relevant checks, interpret failures, and revise the patch within a limited budget. We present \agentforge{}, a role-structured multi-agent framework that separates planning, editing, test construction, debugging, and review while maintaining a shared repository state and execution history. The revised design introduces an explicit \emph{post-edit execution invariant}: every state-changing edit must be followed by execution in the same repository environment before another edit is permitted. Agent-generated tests are treated as auxiliary debugging signals rather than ground-truth correctness evidence, and final correctness is measured only by the official \swebench{} evaluation harness. We specify a leakage-free protocol that excludes reference patches and benchmark grading metadata from agent-visible inputs, resets episodic memory for each evaluation instance, and compares agent configurations under matched model, tool, token, cost, and execution budgets. On the seeded 50-instance subset, the available official harness report for \agentforge{} resolves 1/50 tasks (2.0\%, exact 95\% Clopper--Pearson CI: 0.05\%--10.65\%); matched control configurations currently provide generation-stage statistics but lack saved official grading reports, so no architectural superiority or controlled ablation effect is claimed. The framework and evaluation artifacts will be released with a frozen commit and task-level predictions.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -70,7 +64,8 @@ The revised evaluation is designed around four validity requirements. First, the
     \item An explicit post-edit execution invariant enforced by the orchestrator rather than delegated to a planner-generated sequence.
     \item A contamination-resistant evaluation protocol that excludes gold-patch information, isolates episodic memory, and uses the official \swebench{} evaluation infrastructure.
     \item A controlled experimental design that separates the effects of role decomposition, forced execution, tool access, and additional test-time computation under matched budgets.
-    \item \tbd{Summarize only findings supported by the new task-level rerun.}
+    \item A reproduction artifact in which the reported tables are generated from run outputs rather than transcribed: the released code regenerates every results table, confidence interval, and paired test directly from the official harness reports and task-level ledgers, so a discrepancy between the artifact and the manuscript is a build failure rather than a matter of trust.
+    \item A transparent partial evaluation on a seeded 50-instance subset: the available official harness report records 1/50 resolved tasks for \agentforge{}, while ungraded controls and incomplete ablations are explicitly separated from official correctness claims.
 \end{itemize}
 
 The paper deliberately avoids claiming that execution-enabled agents are new. SWE-agent and OpenHands already support iterative interaction with executable environments~\cite{yang2024sweagent,wang2024openhands}. Our contribution is the orchestration policy, its controlled evaluation, and the separation of auxiliary runtime signals from hidden benchmark correctness.
@@ -188,7 +183,13 @@ The system distinguishes three forms of evidence:
 \end{enumerate}
 A successful auxiliary command indicates that a candidate survived a particular check; it does not establish ground-truth correctness. The manuscript therefore uses the term \emph{execution feedback}, not \emph{ground-truth feedback}, for agent-visible runtime outcomes.
 
-To assess generated-test quality separately, generated tests should be executed on both the base repository and a known-correct patched repository drawn from a disjoint development set. Reported metrics should include the proportion that fail on the buggy version, pass on the fixed version, and avoid unrelated failures. \tbd{Insert the pre-registered generated-test validation protocol and results.}
+Treating generated tests as diagnostic rather than authoritative is a claim about their quality, so it is measured rather than asserted. The protocol is pre-registered here and implemented as a separate program.
+
+For each instance in a development split, the Tester receives exactly the leakage-free input it receives during repair --- issue statement, retrieved context from the base checkout, and nothing else --- and produces a reproduction script. The script is run twice in the instance container: first on the base checkout, where the defect is present, and then on the same checkout with the reference patch applied, where it is fixed. A script is counted as \emph{discriminating} only when it fails on the buggy tree and passes on the fixed one. The three failure modes are reported separately rather than folded into a single rate, because they have different causes and different consequences: scripts that pass on both trees are vacuous and provide the agent with false reassurance; scripts that fail on both are typically broken imports or a misread of the issue, and mislead the Debugger into repairing the wrong thing; scripts that never execute indicate an environment failure rather than a modelling failure.
+
+Two properties of this measurement matter. First, it reads the reference patch, which is legitimate because it is measurement code rather than agent code, and because the patch is applied only after the script has been generated and run on the buggy tree --- the Tester never observes it. Second, it is run on a split disjoint from the one used for headline results. Measuring auxiliary-test quality on the evaluation split and then reporting repair performance on the same instances would be a form of tuning against the test set, even though no reference patch reaches the agent.
+
+The disjoint-development auxiliary-test discrimination study has not yet been completed, so no discrimination rate or failure-mode count is reported in this version.
 
 \subsection{Repository Retrieval and Episodic Memory}
 
@@ -236,10 +237,14 @@ The release will include:
 \begin{itemize}
     \item a frozen repository commit and container image identifiers;
     \item the exact benchmark version and instance list;
+    \item the version of the official harness used for grading, together with the operating system and container-runtime versions of the machine that produced the report;
+    \item the subset file, including its seed and per-repository counts, for every result reported on a subset;
     \item task-level prediction JSONL files;
     \item task-level trajectories, token counts, execution counts, wall-clock time, and API cost;
     \item scripts that reproduce every table and confidence interval.
 \end{itemize}
+
+We record the harness and runtime versions rather than only the benchmark version because instance images are resolved by name from a public registry and the harness's image-naming convention has changed across releases. A stale or mistaken image reference does not fail loudly: the run proceeds, every instance fails during environment setup, and the harness records the outcome as an error rather than a non-resolution. Aggregated without care, that is indistinguishable in the headline number from a system that solved nothing, so the grading environment is part of the reported configuration rather than an implementation detail.
 
 \subsection{Controlled Comparisons}
 
@@ -298,51 +303,42 @@ McNemar's test is applied only to per-instance outcome vectors from two configur
 \section{Results}
 \label{sec:results}
 
-This section is intentionally structured but not populated with results from the rejected evaluation. All values below must be generated from the corrected implementation and official harness.
+This section reports only values generated by the corrected implementation. Official resolution is reported only when a saved official \swebench{} harness report exists; generation-stage patch and resource statistics are taken from the released task-level run records.
 
 \subsection{Main Results}
 
 \begin{table}[t]
 \centering
-\caption{Official \swebench{} Lite results under matched budgets. Confidence intervals and cost statistics must be computed from released task-level records.}
+\caption{\swebench{} Lite results and generation-stage statistics on the seeded 50-instance subset. Official resolution is reported only where a saved official harness report is available; ungraded configurations are marked ``Not graded.'' The \agentforge{} confidence interval is exact Clopper--Pearson. Patch rate, mean cost, and mean executions are computed per attempted task from the released run records.}
 \label{tab:main}
-\resizebox{\linewidth}{!}{%
-\begin{tabular}{lccccc}
-\toprule
-Method & Resolved & Resolve rate [95\% CI] & Patch rate & Mean cost & Execs \\
-\midrule
-Single call, no tools & \res & \res & \res & \res & 0 \\
-ReAct & \res & \res & \res & \res & \res \\
-\midrule
-Single, optional execution & \res & \res & \res & \res & \res \\
-Single, forced execution & \res & \res & \res & \res & \res \\
-Multi-agent, optional execution & \res & \res & \res & \res & \res \\
-\agentforge{} & \res & \res & \res & \res & \res \\
-\bottomrule
-\end{tabular}%
-}
+\resizebox{\linewidth}{!}{\input{tables/main_results}}
 \end{table}
+\FloatBarrier
 
 The primary analysis should answer two paired questions. First, does forced post-edit execution improve performance when the role structure is held constant? Second, does role decomposition improve performance when execution scheduling is held constant? Any interpretation must account for confidence intervals, paired outcomes, and resource use rather than percentage differences alone.
+
+\subsection{Published Results in Context}
+
+Table~\ref{tab:published} summarizes published \swebench{} Lite results from prior work for contextual reference. It is deliberately a separate table, and the separation is not cosmetic. Every entry differs from ours in several respects at once --- base model, token and cost budget, prompt design, scaffold, retrieval strategy, and in several cases the harness version and the date at which the split was scored. A difference measured against any of them is therefore not attributable to role decomposition, to enforced execution, or to any other single property of the system. We report no significance tests against these numbers, and the analysis code has no path that accepts two aggregate rates, because computing a paired statistic from figures produced on different instance-level outcomes is undefined --- the earlier version of this paper did exactly that.
+
+Three properties of the table are worth stating explicitly. First, the model column matters as much as the system column: the same scaffold reported at 18.00\% with GPT-4 and at 56.67\% with a 2025-generation model, so a large fraction of the visible spread reflects base-model progress rather than architectural difference. Second, the leaderboard entries are self-reported by their authors and were not reproduced by us; we quote them as context with an access date rather than as verified measurements, and we mark those without an accompanying publication as such.
+
+Third, the cost column is reported where the source reports it, but it does not support the comparison that Table~\ref{tab:cost} supports. Those figures were produced under different provider prices, different token accounting, and different conventions about whether retried or abandoned attempts are counted; a lower number there may reflect cheaper tokens in a given quarter rather than a more economical method. Accordingly, we do not rank these systems by cost effectiveness from this table. Additional test-time computation is not self-justifying, which is the reason this paper holds budgets equal within its own comparisons rather than reasoning across published figures.
+
+\begin{table}[t]
+\centering
+\caption{Published \swebench{} Lite results from prior work, for context only. Entries differ in model, budget, scaffold and harness version simultaneously, so no difference is attributed to a single cause and no significance test is applied. Leaderboard figures are self-reported and not independently reproduced. Cost is reproduced as reported by each source; a dash denotes a figure the source does not report.}
+\label{tab:published}
+\resizebox{\linewidth}{!}{\input{tables/published_context}}
+\end{table}
 
 \subsection{Equal-Budget and Cost-Effectiveness Analysis}
 
 \begin{table}[t]
 \centering
-\caption{Resource use per task.}
+\caption{Resource use per attempted task for the four factorial arms in the supplied diagnostic run. Values are computed from the 50 task-level trajectories; the same 22 instances were aborted by the leakage guard in all four arms and therefore contribute zero post-abort model usage. Cost is median with interquartile range.}
 \label{tab:cost}
-\resizebox{\linewidth}{!}{%
-\begin{tabular}{lrrrr}
-\toprule
-Method & Tokens & Calls & Executions & Median cost (IQR) \\
-\midrule
-Single, optional execution & \tbd{} & \tbd{} & \tbd{} & \tbd{} \\
-Single, forced execution & \tbd{} & \tbd{} & \tbd{} & \tbd{} \\
-Multi-agent, optional execution & \tbd{} & \tbd{} & \tbd{} & \tbd{} \\
-\agentforge{} & \tbd{} & \tbd{} & \tbd{} & \tbd{} \\
-\bottomrule
-\end{tabular}%
-}
+\resizebox{\linewidth}{!}{\input{tables/budget}}
 \end{table}
 
 A method that uses more computation may still be useful, but the manuscript should describe the tradeoff directly. Report cost per resolved task and resolution at fixed cost ceilings rather than characterizing a more expensive system as more sample efficient without evidence.
@@ -351,28 +347,26 @@ A method that uses more computation may still be useful, but the manuscript shou
 
 Agent-removal ablations must specify exactly how the pipeline changes. Removing a role should not silently alter the number of calls, tool permissions, execution opportunities, or context budget. A preferred design reallocates the removed role's budget to the remaining configuration or reports both fixed-architecture and equal-budget ablations.
 
+Because the grid multiplies the cost of every instance by the number of conditions, ablations are reported on a subset rather than on all 300 instances. The subset is a stated object rather than a by-product of a task limit. \swebench{} splits are grouped by repository and are not shuffled, so truncating to the first $N$ instances is not a sample: it over-represents whichever projects sort first and can omit others entirely. We instead allocate the $N$ slots across repositories in proportion to each repository's share of the split, using the largest-remainder method so the per-repository counts sum exactly to $N$, and draw within each repository under a fixed seed after sorting the candidate identifiers, so the selection does not depend on dataset iteration order. The seed and the resulting per-repository counts are written alongside the instance list, so a reviewer can regenerate the identical subset and verify it. Selection reads only the instance identifier and repository name; it never inspects a reference patch, and so cannot bias the subset toward instances of any particular difficulty. Every condition is intended to run on the same instance list, which is required for the paired differences planned for Table~\ref{tab:ablation}. In the supplied artifact, however, several ablation runs are incomplete because of provider API failures; Table~\ref{tab:ablation} therefore reports run status rather than effect estimates.
+
 \begin{table}[t]
 \centering
-\caption{Pre-specified ablations under an equal resource budget.}
+\caption{Status of the pre-specified ablation runs in the supplied artifact. Because most ablations have no official harness report and several were interrupted by provider API failures, resolution effects and paired differences are not reported. ``Completed'' counts trajectories that reached the repair loop without a top-level run error.}
 \label{tab:ablation}
-\begin{tabular}{lcc}
-\toprule
-Configuration & Resolve rate & Paired difference \\
-\midrule
-Full \agentforge{} & \res & -- \\
-Without Planner & \res & \res \\
-Without Tester & \res & \res \\
-Without Debugger & \res & \res \\
-Without Critic & \res & \res \\
-Without repository retrieval & \res & \res \\
-Without generated tests & \res & \res \\
-\bottomrule
-\end{tabular}
+\resizebox{\linewidth}{!}{\input{tables/ablation}}
 \end{table}
 
 \subsection{Failure Analysis}
 
-Failure analysis should be conducted on a pre-specified random or stratified sample of unresolved tasks by at least two annotators using a documented codebook. Suggested categories include localization error, incomplete semantic repair, invalid patch, dependency or environment failure, overfitting to auxiliary tests, repeated low-diversity repair, and budget exhaustion. Report inter-rater agreement and allow multi-label coding where causes overlap. \tbd{Insert adjudicated counts, examples, and agreement statistics.}
+Failure analysis is conducted on a stratified sample of unresolved instances, drawn by the same seeded procedure used for the evaluation subset so that the sample is reproducible and not chosen after inspecting outcomes. Two annotators code each instance independently from the released trajectory --- the retrieved context, the diffs attempted, the commands executed and their output --- without access to the reference patch, which would make localization judgements trivially post hoc. Coding is multi-label, because a run that mislocalizes and then exhausts its budget exhibits both, and forcing a single cause would understate the more common of the two.
+
+The codebook fixes seven categories. \emph{Localization error}: no edit touches a file modified by the reference patch. \emph{Incomplete semantic repair}: the correct file is edited but the change does not implement the required behaviour. \emph{Invalid patch}: the diff never applies, whether malformed, misaligned, or addressed to a path that does not exist. \emph{Environment failure}: the run is defeated by dependency, build, or container problems rather than by the repair task. \emph{Auxiliary-test overfitting}: the agent's generated test passes while the official tests do not, so runtime evidence actively pointed the wrong way. \emph{Low-diversity repetition}: successive attempts are substantially the same edit, indicating the loop stopped exploring. \emph{Budget exhaustion}: the run terminates on the iteration, execution, cost, or wall-clock cap with work still outstanding.
+
+Two of these categories are diagnostic for the mechanism this paper argues for, and are worth separating for that reason. Auxiliary-test overfitting is the failure mode that enforced execution is most likely to \emph{introduce}: an agent that must act on runtime evidence can be misled by evidence that is wrong. Low-diversity repetition is the mode it is most likely to \emph{reveal}, since an agent that never executes cannot discover that its edit changed nothing. Reporting them separately therefore tests the mechanism rather than only counting its successes.
+
+Agreement is reported as Cohen's $\kappa$ over the multi-label coding, computed per category, before adjudication; disagreements are then resolved by discussion and the adjudicated counts reported. Reporting $\kappa$ before adjudication rather than after is deliberate, since post-adjudication agreement is near unity by construction and says nothing about whether the codebook is applicable.
+
+The adjudicated failure-analysis study has not yet been completed; consequently, per-category counts, representative examples, and Cohen's $\kappa$ values are not reported in this version.
 
 \section{Threats to Validity}
 \label{sec:threats}
@@ -395,7 +389,13 @@ Resource-limited containers reduce but do not eliminate risks from untrusted gen
 \section{Conclusion}
 \label{sec:conclusion}
 
-We presented a revised formulation of \agentforge{} as a role-structured framework for repository-level software repair. The system separates planning, editing, auxiliary test generation, debugging, and review, while an orchestrator-enforced invariant requires execution after every repository-changing edit. The paper deliberately distinguishes runtime evidence available to the agent from hidden benchmark correctness and specifies a leakage-free, budget-controlled evaluation using the official \swebench{} harness. \tbd{Insert only conclusions supported by the corrected task-level evaluation.} The broader lesson is methodological: claims about agent architecture require transparent information boundaries, identical evaluation infrastructure, paired outcomes, and explicit accounting for test-time computation.
+We presented a revised formulation of \agentforge{} as a role-structured framework for repository-level software repair. The system separates planning, editing, auxiliary test generation, debugging, and review, while an orchestrator-enforced invariant requires execution after every repository-changing edit. The paper deliberately distinguishes runtime evidence available to the agent from hidden benchmark correctness and specifies a leakage-free, budget-controlled evaluation using the official \swebench{} harness.
+
+We state plainly what this version does not claim. The numerical results of the earlier version of this work could not be reproduced by the implementation that was said to have produced them, and they are not carried forward in any form. Nothing in this manuscript asserts a resolution rate, a margin over a baseline, or an ablation effect that is not read directly from an official harness report generated by the released code. Where such a report does not yet exist, the corresponding entry is marked as outstanding rather than estimated, and the tables state how many configurations have been graded.
+
+In the available official grading, \agentforge{} resolves 1 of 50 submitted tasks (2.0\%, exact 95\% Clopper--Pearson CI: 0.05\%--10.65\%) and emits a non-empty patch on 24.0\% of attempted tasks. Because the matched control configurations do not yet have saved official harness reports, these observations do not establish an advantage from role decomposition or forced execution, and the incomplete ablation runs do not support effect estimates.
+
+The broader lesson is methodological, and it survives whatever the rerun shows: claims about agent architecture require transparent information boundaries, identical evaluation infrastructure, paired outcomes, and explicit accounting for test-time computation. An architecture that appears to help under oracle localization, an inflated baseline, or a grader that never applies the benchmark's own tests has not been shown to help at all.
 
 \appendices
 

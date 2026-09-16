@@ -34,6 +34,7 @@ import asyncio
 import logging
 import os
 import random
+from pathlib import Path
 from typing import AsyncGenerator
 
 import litellm
@@ -41,6 +42,26 @@ import httpx
 from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
+
+# Load .env here, before anything below reads os.getenv.
+#
+# Only main.py and experiments/setup_and_run.py used to do this, so running
+# an evaluation entrypoint directly — `python -m eval.swebench_runner`,
+# `python -m eval.smoke_test --live` — left DEEPSEEK_API_KEY unset. LiteLLM
+# then sent no credential and the provider answered 401, which reads as "your
+# key is invalid" rather than "your key was never loaded". A preflight that
+# does call load_dotenv passes moments before the run that does not, so the
+# failure looks intermittent and gets blamed on the provider.
+#
+# override=False so a real environment variable still wins over the file,
+# which is what CI and per-run overrides depend on.
+try:
+    from dotenv import load_dotenv
+
+    _ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
+    load_dotenv(_ENV_PATH, override=False)
+except ImportError:  # pragma: no cover - dotenv is optional at runtime
+    logger.debug("python-dotenv not installed; relying on the ambient environment")
 
 # Silence LiteLLM's verbose success logs; keep warnings/errors.
 litellm.set_verbose = False
