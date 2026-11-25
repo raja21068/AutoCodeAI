@@ -1,10 +1,11 @@
 # AgentForge paper
 
-The paper for the AgentForge framework implemented in this repository (`../core`, `../services`, `../eval`).
+The paper for the AgentForge framework implemented in this repository (`../02_Code/core`, `../02_Code/services`, `../02_Code/eval`).
+Folder names below are relative to the repository root.
 
 | Folder | Contents |
 |---|---|
-| `01_Paper/` | **Current version**: "AgentForge: A Role-Structured Multi-Agent Framework for Repository-Level Software Repair with Execution Feedback" (IEEEtran, 10 pages). `AgentForge_Polished_main.tex`/`.pdf`, `ref.bib`, `Figure1.png`, `tables/` (main results, published context, budget, ablation) |
+| `01_Paper/` (this folder) | **Current version**: "AgentForge: A Role-Structured Multi-Agent Framework for Repository-Level Software Repair with Execution Feedback" (IEEEtran, 10 pages). `AgentForge_Polished_main.tex`/`.pdf`, `ref.bib`, `Figure1.png`, `tables/` (main results, published context, budget, ablation) |
 | `03_Evidence/table_fix_2026-08-17/` | Material behind Tables II-V: `TABLE_FIX_NOTES.md` (only AgentForge has an official SWE-bench harness report: 1/50 resolved, 2.0%, 95% CI [0.05%, 10.65%]; other rows marked "Not graded"), `eval/analyze_results.py`, `eval/export_tables.py`, `lite50.json` |
 | `06_Reconstruction/v1_execution_grounded/` | Earlier version: "AgentForge: Execution-Grounded Multi-Agent LLM Framework for Autonomous Software Engineering" (`main.tex`, `sections/`, figures, NeurIPS style and checklist). Has its own copies of `Figure1.png` and `ref.bib` so it builds on its own (11 pages) |
 | `06_Reconstruction/` | `paper_build_older_build_of_Polished_main.*` (an earlier build of the current version), `AgentForge_Polished_Revision_Draft.pdf`, a duplicate PDF of the current version, and the tables-source zip |
