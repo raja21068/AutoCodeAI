@@ -26,18 +26,18 @@ htmlcov/
 
 # Evaluation output. Trajectories carry full prompts and can be large;
 # release them deliberately as a versioned artifact, not by accident.
-eval/results/
-experiments/results/
+02_Code/eval/results/
+02_Code/experiments/results/
 logs/
 *.jsonl
-!eval/subsets/*.json
+!02_Code/eval/subsets/*.json
 
 # Local vector index
 .ai_coding_index/
 chroma/
 
 # Official harness scratch
-logs/run_evaluation/
+02_Code/logs/run_evaluation/
 *.swebench.json
 
 # OS / editor
